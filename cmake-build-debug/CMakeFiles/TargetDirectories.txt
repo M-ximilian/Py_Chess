@@ -1,0 +1,3 @@
+D:/Programing/CLion/Py_Chess/cmake-build-debug/CMakeFiles/Py_Chess.dir
+D:/Programing/CLion/Py_Chess/cmake-build-debug/CMakeFiles/edit_cache.dir
+D:/Programing/CLion/Py_Chess/cmake-build-debug/CMakeFiles/rebuild_cache.dir

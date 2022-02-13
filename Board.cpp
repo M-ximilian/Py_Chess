@@ -24,10 +24,10 @@ tuple<bool, int, int, int> convert_fen_to_position(string fen, Piece *board, boo
         }
         index++;
     }
-    index += 2;
+    index ++;
     //get first player to move
     if (fen[index] == 'b') { first_moving_player = false; }
-    index++;
+    index+=2;
     //get castling rights
     if (fen[index] != '-') {
         while (fen[index] != ' ') {
@@ -96,18 +96,19 @@ void Board::generate_piece_moves() {
     bool only_searching_pins; // active if collision detected but pin still possible
     bool en_passant_pin_exception = false; // if true, pair of pawns already found
     int current_move_position; // counts the index in move-array
+    vector<int> & pieces_to_update = (current_player?white_positions:black_positions);
+    for (auto piece_index:pieces_to_update) {
 
-    for (auto white_piece_index: white_positions) {
         current_move_position = 0;
-        Piece &white_piece = board[white_piece_index];
-        if (white_piece.get_type() == pawn) {
+        Piece &own_piece = board[piece_index];
+        if (own_piece.get_type() == pawn) {
 
-        } else if (white_piece.get_type() == knight) {
+        } else if (own_piece.get_type() == knight) {
 
-        } else if (white_piece.get_type() == bishop || white_piece.get_type() == rook ||
-                   white_piece.get_type() == queen) {
+        } else if (own_piece.get_type() == bishop || own_piece.get_type() == rook ||
+                   own_piece.get_type() == queen) {
             const short int move_directions[8] = {-9, -8, -7, -1, 1, 7, 8, 9};
-            short int *sliding_lengths = sliding_piece_distances[white_piece.get_int_type() - 3][white_piece_index];
+            short int *sliding_lengths = sliding_piece_distances[own_piece.get_int_type() - 3][piece_index];
 
             // go through every viewing direction
             for (int direction = 0; direction < 8; direction++) {
@@ -117,22 +118,21 @@ void Board::generate_piece_moves() {
                 only_searching_pins = false;
 
                 // go through the maximum amount of moves in said direction
-                for (int white_move = 1; white_move <= move_length; white_move++) {
-                    int destination_square = white_piece_index + white_move * current_move_direction;
+                for (int own_move = 1; own_move <= move_length; own_move++) {
+                    int destination_square = piece_index + own_move * current_move_direction;
                     Piece &destination_piece = board[destination_square];
                     if (!only_searching_pins) {
 
-
                         // no piece at square -> add move
                         if (destination_piece.get_type() == none) {
-                            white_piece.set_moves(current_move_position, destination_square);
+                            own_piece.set_moves(current_move_position, destination_square);
                             current_move_position++;
-                        } else if (!destination_piece.get_color()) {
+                        } else if (destination_piece.get_color() != current_player) {
                             // opponent piece at square -> add move and initiate "only pins"
-                            white_piece.set_moves(current_move_position, destination_square);
+                            own_piece.set_moves(current_move_position, destination_square);
                             current_move_position++;
                             if (destination_square == king_positions[0]) {
-                                checking[1].emplace_back(white_piece_index, current_move_direction);
+                                checking[1].emplace_back(piece_index, current_move_direction);
                                 break;
                             } else {
                                 only_searching_pins = true;
@@ -140,11 +140,11 @@ void Board::generate_piece_moves() {
                         } else {
                             // checks if: 1) direction is sideways, 2) destination piece is an own pawn,
                             // 3) next square is still part of moving direction, 4) next square has opponent pawn
-                            if (abs(current_move_direction) == 8 && destination_piece.get_type() == pawn &&
-                                white_move != move_length &&
-                                board[white_piece_index + (white_move + 1) * current_move_direction].get_type() ==
-                                pawn &&
-                                !board[white_piece_index + (white_move + 1) * current_move_direction].get_color()) {
+                            if (abs(current_move_direction) == 1 && destination_piece.get_type() == pawn &&
+                                own_move != move_length &&
+                                board[piece_index + (own_move + 1) * current_move_direction].get_type() == pawn &&
+                                board[piece_index + (own_move + 1) * current_move_direction].get_color() !=
+                                current_player) {
                                 only_searching_pins = true;
                                 en_passant_pin_exception = true;
                             } else {
@@ -154,10 +154,10 @@ void Board::generate_piece_moves() {
                     } else {
                         // only searching pins
                         if (destination_piece.get_type() == none) { continue; }
-                        else if (!destination_piece.get_color()) {
-                            // black piece found
+                        else if (destination_piece.get_color() != current_player) {
+                            // opponent piece found
                             if (destination_piece.get_type() == king) {
-                                pinning[1].emplace_back(white_piece_index, current_move_direction,
+                                pinning[1].emplace_back(piece_index, current_move_direction,
                                                         en_passant_pin_exception);
                             } else {
                                 break;
@@ -167,11 +167,11 @@ void Board::generate_piece_moves() {
 
                             // not already had exception, direction is horizontal, destination is white pawn,
                             // previews is pawn, previews is black
-                            if (!en_passant_pin_exception && abs(current_move_direction) == 8 &&
+                            if (!en_passant_pin_exception && abs(current_move_direction) == 1 &&
                                 destination_piece.get_type() == pawn &&
-                                board[white_piece_index + (white_move - 1) * current_move_direction].get_type() ==
-                                pawn &&
-                                !board[white_piece_index + (white_move - 1) * current_move_direction].get_color()) {
+                                board[piece_index + (own_move - 1) * current_move_direction].get_type() == pawn &&
+                                board[piece_index + (own_move - 1) * current_move_direction].get_color() !=
+                                current_player) {
                                 en_passant_pin_exception = true;
                                 continue;
                             } else {
@@ -181,9 +181,10 @@ void Board::generate_piece_moves() {
                     }
                 }
             }
-        } else if (white_piece.get_type() == king) {
+        } else if (own_piece.get_type() == king) {
 
         } else { throw invalid_argument("received invalid white piece type"); }
+        own_piece.set_amount_moves(current_move_position);
     }
     // king collisions
 

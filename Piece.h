@@ -50,9 +50,15 @@ public:
 
     [[nodiscard]] bool get_color() const { return color; };
 
-    int get_type() { return type; };
+    piece_types get_type() { return type; };
+
+    int get_int_type() { return type; }
 
     void set_moves(const int *new_moves, int amount);
+
+    void set_amount_moves(int &amount) { amount_moves = amount; }
+
+    void set_moves(int &position, int &value) { moves[position] = value; }
 
 private:
     int moves[27]{0};

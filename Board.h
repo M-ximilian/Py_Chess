@@ -31,7 +31,10 @@ private:
 
     // first location of piece, then viewing direction in which piece is pinned/ checked, needed for blocking
     vector<tuple<int,int>> checking{};
-    vector<tuple<int,int, bool>> pinning{}; // marker for en passant pins
+    vector<tuple<int,int, int>> pinning{}; // marker for en passant pins
+    vector<tuple<int, int, int>> en_passant_pinning{};
+    set<int> defended_pieces;
+
 };
 
 

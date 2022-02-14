@@ -2,7 +2,7 @@
 
 int main() {
     std::cout << "Hello, World!" << std::endl;
-    Board b = Board("8/RpPk3R/8/3rN3/1N6/3Q4/8/1K6 b - - 0 1");
+    Board b = Board("start");
     b.generate_piece_moves();
     return 0;
 }

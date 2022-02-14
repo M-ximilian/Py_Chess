@@ -92,20 +92,24 @@ Board::Board(string fen_init) {
 
 void Board::generate_piece_moves() {
 
-    int current_move_position; // counts the index in move-array
+    auto time_before = chrono::high_resolution_clock::now();
+    checking.clear();
+    pinning.clear();
+    en_passant_pinning.clear(), defended_pieces.clear();
+    int pinned_piece;
+
     bool castling_rights_this_move[2]{true};
 
     vector<int> &opponent_pieces = (current_player ? black_positions : white_positions);
     vector<int> &own_pieces = (current_player ? white_positions : black_positions);
     // get only collision detection and pinning/ checking
-    bool only_searching_pins; // active if collision detected but pin still possible
+    bool first_piece_found; // active if collision detected but pin still possible
     bool en_passant_pin_exception = false; // if true, a pair of pawns has already been found
     for (auto opponent_piece_position: opponent_pieces) {
-        current_move_position = 0;
         Piece &opponent_piece = board[opponent_piece_position];
         if (opponent_piece.get_type() == pawn) {
-            for (auto destination_square: {-9 + 16 * current_player, -7 + 16 * current_player}) {
-                if (abs(opponent_piece_position & 8 - destination_square % 8) != 1) { continue; }
+            for (auto destination_square: {7 - 16 * current_player, 9 - 16 * current_player}) {
+                if (abs(opponent_piece_position % 8 - destination_square % 8) != 1) { continue; }
                 // disable castling if opponent sees part of king castling route
                 // short
                 if (castling_rights[2 * current_player] && castling_rights_this_move[0]) {
@@ -122,7 +126,10 @@ void Board::generate_piece_moves() {
                     }
                 } else if (destination_square == king_positions[current_player]) {
                     checking.emplace_back(opponent_piece_position, destination_square);
-                    break;
+                }
+                if (board[destination_square+opponent_piece_position].get_type() != none &&
+                    board[destination_square+opponent_piece_position].get_color() != current_player) {
+                    defended_pieces.insert(destination_square+opponent_piece_position);
                 }
             }
         } else if (opponent_piece.get_type() == knight) {
@@ -134,8 +141,9 @@ void Board::generate_piece_moves() {
                 // skip moves that would leave board
                 if (!(abs(destination_square / 8 - opponent_piece_position / 8) == 2 &&
                       abs(destination_square % 8 - opponent_piece_position % 8) == 1 ||
-                      !(abs(destination_square / 8 - opponent_piece_position / 8) == 1 &&
-                        abs(destination_square % 8 - opponent_piece_position % 8) == 2))) {
+                      (abs(destination_square / 8 - opponent_piece_position / 8) == 1 &&
+                        abs(destination_square % 8 - opponent_piece_position % 8) == 2)) || destination_square < 0 ||
+                    destination_square > 63) {
                     continue;
                 }
 
@@ -156,6 +164,9 @@ void Board::generate_piece_moves() {
                     checking.emplace_back(opponent_piece_position, destination_square);
                     castling_rights_this_move[0] = false;
                     castling_rights_this_move[1] = false;
+                }
+                if (destination_piece.get_type() != none && destination_piece.get_color() != current_player) {
+                    defended_pieces.insert(destination_square);
                 }
             }
 
@@ -225,14 +236,14 @@ void Board::generate_piece_moves() {
                 const int &move_length = sliding_lengths[direction];
                 const int &current_move_direction = move_directions[direction];
 
-                only_searching_pins = false;
+                first_piece_found = false;
                 en_passant_pin_exception = false;
 
                 // go through the maximum amount of moves in said direction
                 for (int opponent_move = 1; opponent_move <= move_length; opponent_move++) {
                     int destination_square = opponent_piece_position + opponent_move * current_move_direction;
                     Piece &destination_piece = board[destination_square];
-                    if (!only_searching_pins) {
+                    if (!first_piece_found) {
                         // disable castling if opponent sees part of king castling route
                         // short
                         if (castling_rights[2 * current_player] && castling_rights_this_move[0]) {
@@ -256,10 +267,13 @@ void Board::generate_piece_moves() {
                         if (destination_piece.get_type() == none) {
                             continue;
                         } else if (destination_piece.get_color() == current_player) {
-                            only_searching_pins = true;
+                            pinned_piece = destination_square;
+                            first_piece_found = true;
                         } else if (destination_piece.get_color() != current_player) {
+                            defended_pieces.insert(destination_square);
                             // checks if: 1) direction is sideways, 2) destination piece is an own pawn,
                             // 3) next square is still part of moving direction, 4) next square has opponent pawn
+
                             if (abs(current_move_direction) == 1 && destination_piece.get_type() == pawn &&
                                 opponent_move != move_length &&
                                 board[opponent_piece_position +
@@ -268,7 +282,8 @@ void Board::generate_piece_moves() {
                                 board[opponent_piece_position +
                                       (opponent_move + 1) * current_move_direction].get_color() ==
                                 current_player) {
-                                only_searching_pins = true;
+                                pinned_piece = opponent_piece_position + (opponent_move + 1) * current_move_direction;
+                                first_piece_found = true;
                                 en_passant_pin_exception = true;
                             } else {
                                 break;
@@ -280,18 +295,18 @@ void Board::generate_piece_moves() {
                             continue;
                         } else if (destination_piece.get_color() == current_player &&
                                    destination_piece.get_type() == king) {
-                            pinning.emplace_back(opponent_piece_position, current_move_direction,
-                                                 en_passant_pin_exception);
+                            (en_passant_pin_exception ? en_passant_pinning : pinning).emplace_back(
+                                    opponent_piece_position, current_move_direction, pinned_piece);
                         } else if (destination_piece.get_color() != current_player && !en_passant_pin_exception &&
-                                   abs(current_move_direction) == 1 && destination_piece.get_type() == pawn &&
-                                   board[opponent_piece_position +
-                                         (opponent_move - 1) * current_move_direction].get_type() == pawn &&
-                                   board[opponent_piece_position +
-                                         (opponent_move - 1) * current_move_direction].get_color() ==
-                                   current_player) {
-                            // en passant case with first own piece then opponent piece
-                            en_passant_pin_exception = true;
-                            continue;
+                                abs(current_move_direction) == 1 && destination_piece.get_type() == pawn &&
+                                board[opponent_piece_position +
+                                      (opponent_move - 1) * current_move_direction].get_type() == pawn &&
+                                board[opponent_piece_position +
+                                      (opponent_move - 1) * current_move_direction].get_color() ==
+                                current_player) {
+                                // en passant case with first own piece then opponent piece
+                                en_passant_pin_exception = true;
+                                continue;
                         } else { break; }
                     }
                 }
@@ -304,6 +319,10 @@ void Board::generate_piece_moves() {
                 if (abs((opponent_move + opponent_piece_position) / 8 - opponent_piece_position / 8) <= 1 &&
                     abs((opponent_move + opponent_piece_position) % 8 - opponent_piece_position % 8) <= 1 &&
                     opponent_move + opponent_piece_position > -1 && opponent_move + opponent_piece_position < 64) {
+                    if (board[opponent_move + opponent_piece_position].get_type() != none &&
+                        board[opponent_move + opponent_piece_position].get_color() != current_player) {
+                        defended_pieces.insert(opponent_move + opponent_piece_position);
+                    }
                     actual_opponent_moves[actual_position_counter] = opponent_piece_position + opponent_move;
                     actual_position_counter++;
                 }
@@ -311,7 +330,11 @@ void Board::generate_piece_moves() {
             opponent_piece.set_moves(actual_opponent_moves, actual_position_counter);
         } else { throw invalid_argument("received invalid opponent piece type"); }
     }
-    // king collisions
+    auto end_time = chrono::high_resolution_clock::now();
+    auto time = end_time - time_before;
+    cout << "Time needed: " << time / std::chrono::nanoseconds(1) << endl;
+
+    // compute full checking_lines
 
 
 }

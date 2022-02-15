@@ -27,13 +27,18 @@ private:
     int en_passant_square = -1;
     int fifty_moves_rule_count;
     int move_count;
+    int undo_count = 0;
     int amount_of_pieces = 0;
+    vector<stored_move> move_history{};
+    stored_move no_move = stored_move{-1, -1,none, none, -1, -1, {false, false, false, false}};
 
     // first location of piece, then viewing direction in which piece is pinned/ checked, needed for blocking
     vector<tuple<int,int>> checking{};
     vector<tuple<int,int, int>> pinning{}; // marker for en passant pins
     vector<tuple<int, int, int>> en_passant_pinning{};
-    set<int> defended_pieces;
+    unordered_set<int> defended_squares;
+
+    stored_move * last_move(){if (move_history.size()-undo_count == 0){return &no_move;} else {return &move_history.at(move_history.size()-undo_count-1);}};
 
 };
 

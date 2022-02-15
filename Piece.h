@@ -56,9 +56,9 @@ public:
 
     void set_moves(const int *new_moves, int amount);
 
-    void set_amount_moves(int &amount) { amount_moves = amount; }
+    void set_amount_moves(int amount) { amount_moves = amount; }
 
-    void set_moves(int &position, int &value) { moves[position] = value; }
+    void set_moves(int &position, int value) { moves[position] = value;}
 
 private:
     int moves[27]{0};

@@ -127,9 +127,10 @@ void Board::generate_piece_moves() {
                 } else if (destination_square == king_positions[current_player]) {
                     checking.emplace_back(opponent_piece_position, destination_square);
                 }
-                if (board[destination_square+opponent_piece_position].get_type() != none &&
-                    board[destination_square+opponent_piece_position].get_color() != current_player) {
-                    defended_pieces.insert(destination_square+opponent_piece_position);
+                if (board[destination_square + opponent_piece_position].get_type() != none &&
+                    board[destination_square + opponent_piece_position].get_color() != current_player &&
+                    abs(king_positions[current_player] - destination_square - opponent_piece_position) < 10) {
+                    defended_pieces.insert(destination_square + opponent_piece_position);
                 }
             }
         } else if (opponent_piece.get_type() == knight) {
@@ -142,7 +143,7 @@ void Board::generate_piece_moves() {
                 if (!(abs(destination_square / 8 - opponent_piece_position / 8) == 2 &&
                       abs(destination_square % 8 - opponent_piece_position % 8) == 1 ||
                       (abs(destination_square / 8 - opponent_piece_position / 8) == 1 &&
-                        abs(destination_square % 8 - opponent_piece_position % 8) == 2)) || destination_square < 0 ||
+                       abs(destination_square % 8 - opponent_piece_position % 8) == 2)) || destination_square < 0 ||
                     destination_square > 63) {
                     continue;
                 }
@@ -165,7 +166,8 @@ void Board::generate_piece_moves() {
                     castling_rights_this_move[0] = false;
                     castling_rights_this_move[1] = false;
                 }
-                if (destination_piece.get_type() != none && destination_piece.get_color() != current_player) {
+                if (destination_piece.get_type() != none && destination_piece.get_color() != current_player &&
+                    abs(king_positions[current_player] - destination_square) < 10) {
                     defended_pieces.insert(destination_square);
                 }
             }
@@ -270,7 +272,9 @@ void Board::generate_piece_moves() {
                             pinned_piece = destination_square;
                             first_piece_found = true;
                         } else if (destination_piece.get_color() != current_player) {
-                            defended_pieces.insert(destination_square);
+                            if (abs(king_positions[current_player] - destination_square) < 10) {
+                                defended_pieces.insert(destination_square);
+                            }
                             // checks if: 1) direction is sideways, 2) destination piece is an own pawn,
                             // 3) next square is still part of moving direction, 4) next square has opponent pawn
 
@@ -298,15 +302,15 @@ void Board::generate_piece_moves() {
                             (en_passant_pin_exception ? en_passant_pinning : pinning).emplace_back(
                                     opponent_piece_position, current_move_direction, pinned_piece);
                         } else if (destination_piece.get_color() != current_player && !en_passant_pin_exception &&
-                                abs(current_move_direction) == 1 && destination_piece.get_type() == pawn &&
-                                board[opponent_piece_position +
-                                      (opponent_move - 1) * current_move_direction].get_type() == pawn &&
-                                board[opponent_piece_position +
-                                      (opponent_move - 1) * current_move_direction].get_color() ==
-                                current_player) {
-                                // en passant case with first own piece then opponent piece
-                                en_passant_pin_exception = true;
-                                continue;
+                                   abs(current_move_direction) == 1 && destination_piece.get_type() == pawn &&
+                                   board[opponent_piece_position +
+                                         (opponent_move - 1) * current_move_direction].get_type() == pawn &&
+                                   board[opponent_piece_position +
+                                         (opponent_move - 1) * current_move_direction].get_color() ==
+                                   current_player) {
+                            // en passant case with first own piece then opponent piece
+                            en_passant_pin_exception = true;
+                            continue;
                         } else { break; }
                     }
                 }
@@ -320,7 +324,8 @@ void Board::generate_piece_moves() {
                     abs((opponent_move + opponent_piece_position) % 8 - opponent_piece_position % 8) <= 1 &&
                     opponent_move + opponent_piece_position > -1 && opponent_move + opponent_piece_position < 64) {
                     if (board[opponent_move + opponent_piece_position].get_type() != none &&
-                        board[opponent_move + opponent_piece_position].get_color() != current_player) {
+                        board[opponent_move + opponent_piece_position].get_color() != current_player &&
+                        abs(king_positions[current_player] - opponent_piece_position - opponent_move) < 10) {
                         defended_pieces.insert(opponent_move + opponent_piece_position);
                     }
                     actual_opponent_moves[actual_position_counter] = opponent_piece_position + opponent_move;

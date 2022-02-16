@@ -135,8 +135,8 @@ void Board::generate_piece_moves() {
                 }
             }
         } else if (opponent_piece.get_type() == knight) {
-            int moving_directions[8] = {-17, -15, -10, -6, 6, 10, 15, 17};
-            for (auto direction: moving_directions) {
+
+            for (auto direction: knight_moving_directions) {
                 int destination_square = opponent_piece_position + direction;
                 Piece &destination_piece = board[destination_square];
 
@@ -232,14 +232,14 @@ void Board::generate_piece_moves() {
             }
              */
 
-            const short int move_directions[8] = {-9, -8, -7, -1, 1, 7, 8, 9};
+
             short int *sliding_lengths = sliding_piece_distances[opponent_piece.get_int_type() -
                                                                  3][opponent_piece_position];
 
             // go through every viewing direction
             for (int direction = 0; direction < 8; direction++) {
                 const int &move_length = sliding_lengths[direction];
-                const int &current_move_direction = move_directions[direction];
+                const int &current_move_direction = sliding_move_directions[direction];
 
                 first_piece_found = false;
                 en_passant_pin_exception = false;
@@ -325,10 +325,9 @@ void Board::generate_piece_moves() {
                 }
             }
         } else if (opponent_piece.get_type() == king) {
-            int opponent_moves[8] = {-9, -8, -7, -1, 1, 7, 8, 9};
             int actual_opponent_moves[8];
             int actual_position_counter = 0;
-            for (int &opponent_move: opponent_moves) {
+            for (auto opponent_move: sliding_move_directions) {
                 if (abs((opponent_move + opponent_piece_position) / 8 - opponent_piece_position / 8) <= 1 &&
                     abs((opponent_move + opponent_piece_position) % 8 - opponent_piece_position % 8) <= 1 &&
                     opponent_move + opponent_piece_position > -1 && opponent_move + opponent_piece_position < 64) {
@@ -363,11 +362,10 @@ void Board::generate_piece_moves() {
             board[own_piece].set_amount_moves(0);
         }
         // only king moves need to be done
-        int king_move_directions[8] = {-9, -8, -7, -1, 1, 7, 8, 9};
         int &king_position = king_positions[current_player];
         int move_position = 0;
         Piece &king = board[king_position];
-        for (const int &direction: king_move_directions) {
+        for (auto direction: sliding_move_directions) {
             if (defended_squares.find(king_position + direction) == defended_squares.end() &&
                 (board[king_position + direction].get_type() == none ||
                  board[king_position + direction].get_color() != current_player)) {
@@ -413,26 +411,46 @@ void Board::generate_piece_moves() {
                         }
                     }
                 }
-                stored_move *last = last_move();
-                // en passant pins not checked, use existing en passant if already computed, use en passant pawn counter
-                if (own_piece_position / 8 == (current_player ? 4 : 3) && last->piece == pawn &&
-                    (last->previews_square) / 8 == (current_player ? 6 : 1) &&
-                    abs(last->previews_square - last->new_square) == 16 &&
-                    (last->new_square - own_piece_position) == 1 &&
-                    (last->new_square % 8 - own_piece_position % 8) == 1 &&
-                    find(checking_lines.at(0).begin(), checking_lines.at(0).end(),
-                         (current_player ? 40 : 24) + last->new_square % 8) != checking_lines.at(0).end()) {
-                    en_passant_square = (current_player ? 40 : 24) + last->new_square % 8;
-                    own_piece.set_moves(move_index, destination_square);
+                // en passant that blockes check not possible in normal game, only if given via fen
+                if (first_update && en_passant_pawn_counter < 2 &&
+                    abs(en_passant_square - own_piece_position + (current_player ? 8 : -8)) == 1 &&
+                    find(checking_lines.at(0).begin(), checking_lines.at(0).end(), en_passant_square) !=
+                    checking_lines.at(0).end()) {
+                    own_piece.set_moves(move_index, en_passant_square);
                     en_passant_pawn_counter++;
                     move_index++;
                 }
                 own_piece.set_amount_moves(move_index);
             } else if (own_piece.get_type() == knight) {
-
+                int move_index = 0;
+                for (auto direction: knight_moving_directions) {
+                    int destination_square = own_piece_position + direction;
+                    if (find(checking_lines.at(0).begin(), checking_lines.at(0).end(), destination_square) !=
+                        checking_lines.at(0).end()) {
+                        own_piece.set_moves(move_index, destination_square);
+                        move_index++;
+                    }
+                }
+                own_piece.set_amount_moves(move_index);
             } else if (own_piece.get_type() == bishop || own_piece.get_type() == rook ||
                        own_piece.get_type() == queen) {
+                int move_index = 0;
+                for (int direction_index = 0; direction_index < 8; direction_index++) {
+                    const int & move_length = sliding_piece_distances[own_piece.get_type()-3][own_piece_position][direction_index];
+                    const int & current_move_direction = sliding_move_directions[direction_index];
+                    for (int current_move = 1; current_move <= move_length; current_move++) {
+                        int destination_square = own_piece_position + current_move*current_move_direction;
+                        if ( find(checking_lines.at(0).begin(), checking_lines.at(0).end(), destination_square) !=
+                            checking_lines.at(0).end()) {
+                            own_piece.set_moves(move_index, destination_square);
+                            move_index++;
+                            break;
 
+                        }
+                    }
+                    if (move_index == 3) {break;}
+                }
+                own_piece.set_amount_moves(move_index);
             } else if (own_piece.get_type() == king) {
 
             } else { throw invalid_argument("received invalid own piece type computing check-case"); }
@@ -443,6 +461,7 @@ void Board::generate_piece_moves() {
     }
     auto end_time = chrono::high_resolution_clock::now();
     auto time = end_time - time_before;
-    cout << "Time needed: " << time / std::chrono::nanoseconds(1) << endl;
+    //cout << "Time needed: " << time / std::chrono::nanoseconds(1) << endl;
+    first_update = false;
 
 }

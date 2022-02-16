@@ -21,6 +21,7 @@ private:
     vector<int> black_positions;
 
     int king_positions[2]{};
+    bool first_update = true;
     bool current_player;
     bool castling_rights[4]{false}; //kqKQ
     int castling_end_squares[4] = {62, 58, 61, 59}; // first king then rook, first short then long for black
@@ -37,6 +38,9 @@ private:
     vector<tuple<int,int, int>> pinning{}; // marker for en passant pins
     vector<tuple<int, int, int>> en_passant_pinning{};
     unordered_set<int> defended_squares;
+
+    const short int knight_moving_directions[8] = {-17, -15, -10, -6, 6, 10, 15, 17};
+    const short int sliding_move_directions[8] = {-9, -8, -7, -1, 1, 7, 8, 9};
 
     stored_move * last_move(){if (move_history.size()-undo_count == 0){return &no_move;} else {return &move_history.at(move_history.size()-undo_count-1);}};
 

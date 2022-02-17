@@ -357,6 +357,7 @@ void Board::generate_piece_moves() {
 
     // compute own moves depending on if checked or not
     int en_passant_pawn_counter = 0;
+    int move_index = 0;
     if (checking_lines.size() > 1) {
         for (const int &own_piece: own_pieces) {
             board[own_piece].set_amount_moves(0);
@@ -388,14 +389,13 @@ void Board::generate_piece_moves() {
                 }
                 pin_index++;
             }
-            if (own_piece.get_type() != king && piece_is_pinned) {
+            if (piece_is_pinned) {
                 own_piece.set_amount_moves(0);
                 pinning.erase(pinning.begin() + pin_index);
                 continue;
             }
             if (own_piece.get_type() == pawn) {
                 int destination_square = own_piece_position + (current_player ? 8 : -8);
-                int move_index = 0;
                 if (board[destination_square].get_type() == none) {
                     if (find(checking_lines.at(0).begin(), checking_lines.at(0).end(), destination_square) !=
                         checking_lines.at(0).end()) {
@@ -422,7 +422,6 @@ void Board::generate_piece_moves() {
                 }
                 own_piece.set_amount_moves(move_index);
             } else if (own_piece.get_type() == knight) {
-                int move_index = 0;
                 for (auto direction: knight_moving_directions) {
                     int destination_square = own_piece_position + direction;
                     if (find(checking_lines.at(0).begin(), checking_lines.at(0).end(), destination_square) !=
@@ -434,13 +433,13 @@ void Board::generate_piece_moves() {
                 own_piece.set_amount_moves(move_index);
             } else if (own_piece.get_type() == bishop || own_piece.get_type() == rook ||
                        own_piece.get_type() == queen) {
-                int move_index = 0;
                 for (int direction_index = 0; direction_index < 8; direction_index++) {
-                    const int & move_length = sliding_piece_distances[own_piece.get_type()-3][own_piece_position][direction_index];
-                    const int & current_move_direction = sliding_move_directions[direction_index];
+                    const int &move_length = sliding_piece_distances[own_piece.get_type() -
+                                                                     3][own_piece_position][direction_index];
+                    const int &current_move_direction = sliding_move_directions[direction_index];
                     for (int current_move = 1; current_move <= move_length; current_move++) {
-                        int destination_square = own_piece_position + current_move*current_move_direction;
-                        if ( find(checking_lines.at(0).begin(), checking_lines.at(0).end(), destination_square) !=
+                        int destination_square = own_piece_position + current_move * current_move_direction;
+                        if (find(checking_lines.at(0).begin(), checking_lines.at(0).end(), destination_square) !=
                             checking_lines.at(0).end()) {
                             own_piece.set_moves(move_index, destination_square);
                             move_index++;
@@ -448,16 +447,162 @@ void Board::generate_piece_moves() {
 
                         }
                     }
-                    if (move_index == 3) {break;}
+                    if (move_index == 3) { break; }
                 }
                 own_piece.set_amount_moves(move_index);
             } else if (own_piece.get_type() == king) {
-
+                for (auto moving_direction: sliding_move_directions) {
+                    int destination_square = own_piece_position + moving_direction;
+                    Piece &destination_piece = board[destination_square];
+                    if ((destination_piece.get_type() == none || destination_piece.get_color() != current_player) &&
+                        defended_squares.find(destination_square) == defended_squares.end()) {
+                        own_piece.set_moves(move_index, destination_square);
+                        move_index++;
+                    }
+                }
+                own_piece.set_amount_moves(move_index);
             } else { throw invalid_argument("received invalid own piece type computing check-case"); }
 
         }
     } else {
         // no check
+        for (int own_piece_position: own_pieces) {
+            Piece &own_piece = board[own_piece_position];
+            bool piece_is_pinned = false;
+            int pin_index = 0;
+
+            // see if piece is pinned
+            for (auto pin: pinning) {
+                if (get<2>(pin) == own_piece_position) {
+                    piece_is_pinned = true;
+                    break;
+                }
+                pin_index++;
+            }
+            if (own_piece.get_type() == pawn) {
+                if (piece_is_pinned) {
+                    tuple<int, int, int> &current_pin = pinning.at(pin_index);
+                    if (abs(get<1>(current_pin)) == 7 || abs(get<1>(current_pin)) == 9) {
+                        // diagonal pin
+
+                        // normal case
+                        bool normal_without_result = true;
+                        for (int current_move_direction = 7; current_move_direction < 10; current_move_direction += 2) {
+                            int destination_square =
+                                    own_piece_position + (current_player ? 1 : -1) * current_move_direction;
+                            if (abs(own_piece_position % 8 - destination_square % 8) != 1) { continue; }
+                            if (destination_square == get<0>(current_pin)) {
+                                own_piece.set_moves(move_index, destination_square);
+                                move_index++;
+                                normal_without_result = false;
+                                break;
+                            }
+                        }
+                        if (normal_without_result) {
+                            // try way too complicated en passant case
+
+                            // compute en passant square if not already done
+                            if (en_passant_square == -1) {
+                                stored_move *last = last_move();
+                                if (last->piece == pawn && last->previews_square / 8 == (current_player ? 6 : 1) &&
+                                    abs(last->previews_square - last->new_square) == 16) {
+                                    en_passant_square = last->previews_square + (current_player ? -8 : 8);
+                                }
+                            }
+                            if (en_passant_square != -1 && en_passant_pawn_counter < 2) {
+                                int maximum_pin_distance =
+                                        (king_positions[current_player] - get<0>(current_pin)) / get<1>(current_pin);
+                                for (int current_move_direction = 7;
+                                     current_move_direction < 10; current_move_direction += 2) {
+                                    int destination_square =
+                                            own_piece_position + (current_player ? 1 : -1) * current_move_direction;
+                                    if (abs(own_piece_position % 8 - destination_square % 8) != 1) { continue; }
+                                    if (destination_square == en_passant_square &&
+                                        abs((destination_square - get<0>(current_pin)) / get<1>(current_pin)) <
+                                        abs(maximum_pin_distance) &&
+                                        (destination_square - get<0>(current_pin)) * maximum_pin_distance *
+                                        get<1>(current_pin) > 0) {
+                                        own_piece.set_moves(move_index, destination_square);
+                                        move_index++;
+                                        en_passant_pawn_counter++;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    } else if (abs(get<1>(current_pin)) == 8) {
+                        // straight pin vertical
+                        if (board[own_piece_position + (current_player ? 8 : -8)].get_type() == none) {
+                            own_piece.set_moves(move_index, own_piece_position + (current_player ? 8 : -8));
+                            move_index++;
+                            if (own_piece_position / 8 == (current_player ? 1 : 6) &&
+                                board[own_piece_position + (current_player ? 16 : -16)].get_type() == none) {
+                                own_piece.set_moves(move_index, own_piece_position + (current_player ? 16 : -16));
+                                move_index++;
+                            }
+                        }
+                    }
+                    pinning.erase(pinning.begin() + pin_index);
+                } else {
+                    // no normal pin
+
+                    // en passant computation
+                    if (en_passant_square == -1) {
+                        stored_move *last = last_move();
+                        if (last->piece == pawn && last->previews_square / 8 == (current_player ? 6 : 1) &&
+                            abs(last->previews_square - last->new_square) == 16) {
+                            en_passant_square = last->previews_square + (current_player ? -8 : 8);
+                        }
+                    }
+
+                    // diagonal moves
+                    for (int diagonal_move = -1; diagonal_move < 2; diagonal_move += 2) {
+                        int destination_square = own_piece_position + (current_player ? 8 : -8) + diagonal_move;
+                        if (abs(own_piece_position % 8 - destination_square % 8) != 1) { continue; }
+                        if (board[destination_square].get_type() != none &&
+                            board[destination_square].get_color() != current_player) {
+                            own_piece.set_moves(move_index, destination_square);
+                            move_index++;
+                        } else if (destination_square == en_passant_square) {
+                            bool blocked_by_pin = false;
+                            for (auto en_passant_pin:en_passant_pinning) {
+                                if (get<2>(en_passant_pin) == own_piece_position) {
+                                    blocked_by_pin = true;
+                                    break;
+                                }
+                            }
+                            if (!blocked_by_pin) {
+                                own_piece.set_moves(move_index, destination_square);
+                                move_index++;
+                            }
+                        }
+                    }
+                    // straight moves
+                    if (board[own_piece_position + (current_player ? 8 : -8)].get_type() == none) {
+                        own_piece.set_moves(move_index, own_piece_position + (current_player ? 8 : -8));
+                        move_index++;
+                        if (own_piece_position / 8 == (current_player ? 1 : 6) &&
+                            board[own_piece_position + (current_player ? 16 : -16)].get_type() == none) {
+                            own_piece.set_moves(move_index, own_piece_position + (current_player ? 16 : -16));
+                            move_index++;
+                        }
+                    }
+                }
+                own_piece.set_amount_moves(move_index);
+            } else if (own_piece.get_type() == knight) {
+                if (piece_is_pinned) {
+                    pinning.erase(pinning.begin() + pin_index);
+                    own_piece.set_amount_moves(0);
+                    continue;
+                }
+            } else if (own_piece.get_type() == bishop || own_piece.get_type() == rook ||
+                       own_piece.get_type() == queen) {
+
+            } else if (own_piece.get_type() == king) {
+
+            } else { throw invalid_argument("received invalid own piece type computing normal update cycle"); }
+        }
+
     }
     auto end_time = chrono::high_resolution_clock::now();
     auto time = end_time - time_before;

@@ -28,6 +28,7 @@ private:
     bool en_passant_updated_this_move = false;
     int fifty_moves_rule_count;
     int move_count;
+    bool en_passant_from_fen = true;
     int undo_count = 0;
     int amount_of_pieces = 0;
     vector<stored_move> move_history{};

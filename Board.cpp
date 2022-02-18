@@ -86,7 +86,7 @@ Board::Board(string fen_init) {
     }
     current_player = get<0>(converted_fen);
     en_passant_square = get<1>(converted_fen);
-    if (en_passant_square != -1) {en_passant_updated_this_move = true;}
+    if (en_passant_square != -1) { en_passant_updated_this_move = true; }
     fifty_moves_rule_count = get<2>(converted_fen);
     move_count = get<3>(converted_fen);
 }
@@ -97,6 +97,8 @@ void Board::generate_piece_moves() {
     checking.clear();
     pinning.clear();
     en_passant_pinning.clear(), defended_squares.clear();
+    if (!en_passant_from_fen) { en_passant_updated_this_move = false; }
+    else { en_passant_from_fen = false; }
     int pinned_piece;
 
     bool castling_rights_this_move[2]{true, true};
@@ -568,7 +570,7 @@ void Board::generate_piece_moves() {
                             move_index++;
                         } else if (destination_square == en_passant_square) {
                             bool blocked_by_pin = false;
-                            for (auto en_passant_pin:en_passant_pinning) {
+                            for (auto en_passant_pin: en_passant_pinning) {
                                 if (get<2>(en_passant_pin) == own_piece_position) {
                                     blocked_by_pin = true;
                                     break;

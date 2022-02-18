@@ -21,11 +21,11 @@ private:
     vector<int> black_positions;
 
     int king_positions[2]{};
-    bool first_update = true;
     bool current_player;
     bool castling_rights[4]{false}; //kqKQ
     int castling_end_squares[4] = {62, 58, 61, 59}; // first king then rook, first short then long for black
     int en_passant_square = -1;
+    bool en_passant_updated_this_move = false;
     int fifty_moves_rule_count;
     int move_count;
     int undo_count = 0;

@@ -86,6 +86,7 @@ Board::Board(string fen_init) {
     }
     current_player = get<0>(converted_fen);
     en_passant_square = get<1>(converted_fen);
+    if (en_passant_square != -1) {en_passant_updated_this_move = true;}
     fifty_moves_rule_count = get<2>(converted_fen);
     move_count = get<3>(converted_fen);
 }
@@ -412,7 +413,7 @@ void Board::generate_piece_moves() {
                     }
                 }
                 // en passant that blockes check not possible in normal game, only if given via fen
-                if (first_update && en_passant_pawn_counter < 2 &&
+                if (en_passant_square != -1 && en_passant_updated_this_move && en_passant_pawn_counter < 2 &&
                     abs(en_passant_square - own_piece_position + (current_player ? 8 : -8)) == 1 &&
                     find(checking_lines.at(0).begin(), checking_lines.at(0).end(), en_passant_square) !=
                     checking_lines.at(0).end()) {
@@ -502,7 +503,8 @@ void Board::generate_piece_moves() {
                             // try way too complicated en passant case
 
                             // compute en passant square if not already done
-                            if (en_passant_square == -1) {
+                            if (en_passant_square == -1 && !en_passant_updated_this_move) {
+                                en_passant_updated_this_move = true;
                                 stored_move *last = last_move();
                                 if (last->piece == pawn && last->previews_square / 8 == (current_player ? 6 : 1) &&
                                     abs(last->previews_square - last->new_square) == 16) {
@@ -547,7 +549,8 @@ void Board::generate_piece_moves() {
                     // no normal pin
 
                     // en passant computation
-                    if (en_passant_square == -1) {
+                    if (en_passant_square == -1 && !en_passant_updated_this_move) {
+                        en_passant_updated_this_move = true;
                         stored_move *last = last_move();
                         if (last->piece == pawn && last->previews_square / 8 == (current_player ? 6 : 1) &&
                             abs(last->previews_square - last->new_square) == 16) {
@@ -607,6 +610,5 @@ void Board::generate_piece_moves() {
     auto end_time = chrono::high_resolution_clock::now();
     auto time = end_time - time_before;
     //cout << "Time needed: " << time / std::chrono::nanoseconds(1) << endl;
-    first_update = false;
 
 }

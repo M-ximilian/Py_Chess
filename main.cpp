@@ -4,7 +4,7 @@ int main() {
     std::cout << "Hello, World!" << std::endl;
     Board b = Board("7k/8/8/KpP4r/8/8/8/8 w - - 0 2");
     auto time_before = chrono::high_resolution_clock::now();
-    for (int i = 0; i < 1; i++) {
+    for (int i = 0; i < 10000000; i++) {
         b.generate_piece_moves();
     }
     auto end_time = chrono::high_resolution_clock::now();

@@ -813,7 +813,7 @@ bool Board::make_move(int starting_square, int destination_square, int promotion
     own_pieces.insert(destination_square);
 
     if (board[destination_square].get_type() == rook) {
-        castling_rights[current_player*2+(destination_square > king_positions[own_pieces]?0:1)] = false;
+        castling_rights[current_player*2+(destination_square > king_positions[current_player])] = false;
     }
     else if (board[destination_square].get_type() == king) {
         castling_rights[0] = false;

@@ -49,6 +49,8 @@ private:
     bool make_move(int starting_square, int destination_square, int promotion_type);
 
     void store_current_position();
+
+    void undo();
 };
 
 

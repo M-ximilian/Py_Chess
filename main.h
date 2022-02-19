@@ -29,7 +29,7 @@ struct stored_move {
     int piece_taken_at;
     int en_passant_square;
     bool castling_rights[4]; // from before move
-    int previews_rook_square, new_rook_square
+    int previews_rook_square, new_rook_square;
 };
 struct stored_position {
 public:

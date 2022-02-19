@@ -798,12 +798,35 @@ bool Board::make_move(int starting_square, int destination_square, int promotion
                         {castling_rights[0], castling_rights[1], castling_rights[2], castling_rights[3]}, old_rook_pos,
                         new_rook_pos});
 
-    board[piece_taken_pos] = Piece();
+    if (board[piece_taken_pos].get_type() != none) {amount_of_pieces--;}
 
+    board[piece_taken_pos] = Piece();
+    opponent_pieces.erase(piece_taken_pos);
+    if (promotion_type < 2 || promotion_type > 5) {
+        board[destination_square] = board[starting_square];
+    } else {
+        board[destination_square] = Piece(current_player, promotion_type);
+    }
+    board[starting_square] = Piece();
+
+    own_pieces.erase(starting_square);
+    own_pieces.insert(destination_square);
+
+    if (board[destination_square].get_type() == rook) {
+        castling_rights[current_player*2+(destination_square > king_positions[own_pieces]?0:1)] = false;
+    }
+    else if (board[destination_square].get_type() == king) {
+        castling_rights[0] = false;
+        castling_rights[1] = false;
+        king_positions[current_player] = destination_square;
+    }
 
 
     store_current_position();
     return true;
+}
+void Board::undo() {
+
 }
 
 void Board::store_current_position() {

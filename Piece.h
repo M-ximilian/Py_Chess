@@ -52,13 +52,18 @@ public:
 
     piece_types get_type() { return type; };
 
-    int get_int_type() { return type; }
+    [[nodiscard]] int get_amount_moves() const { return amount_moves; }
 
     void set_moves(const int *new_moves, int amount);
 
     void set_amount_moves(int amount) { amount_moves = amount; }
 
-    void set_moves(int &position, int value) { moves[position] = value;}
+    void set_moves(int &position, int value) { moves[position] = value; }
+
+    void add_move(int value) {
+        moves[amount_moves] = value;
+        amount_moves++;
+    }
 
 private:
     int moves[27]{0};

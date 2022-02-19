@@ -12,18 +12,18 @@ class Board {
 public:
     Board(string);
 
-    void generate_piece_moves();
+    game_ends generate_piece_moves();
 
 private:
     Piece board[64];
 
-    vector<int> white_positions;
-    vector<int> black_positions;
+    unordered_set<int> white_positions;
+    unordered_set<int> black_positions;
 
     int king_positions[2]{};
     bool current_player;
     bool castling_rights[4]{false}; //kqKQ
-    int castling_end_squares[4] = {62, 58, 61, 59}; // first king then rook, first short then long for black
+    int castling_end_squares[2][4] = {{62, 58, 61, 59},{6, 2, 5, 3}}; // ks, kl, rs, rl (k-king, r-rook, s-short, l-long)
     int en_passant_square = -1;
     bool en_passant_updated_this_move = false;
     int fifty_moves_rule_count;
@@ -32,6 +32,7 @@ private:
     int undo_count = 0;
     int amount_of_pieces = 0;
     vector<stored_move> move_history{};
+    vector<stored_position> positions{};
     stored_move no_move = stored_move{-1, -1,none, none, -1, -1, {false, false, false, false}};
 
     // first location of piece, then viewing direction in which piece is pinned/ checked, needed for blocking
@@ -45,6 +46,9 @@ private:
 
     stored_move * last_move(){if (move_history.size()-undo_count == 0){return &no_move;} else {return &move_history.at(move_history.size()-undo_count-1);}};
 
+    bool make_move(int starting_square, int destination_square, int promotion_type);
+
+    void store_current_position();
 };
 
 

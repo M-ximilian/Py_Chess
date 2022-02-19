@@ -79,8 +79,8 @@ Board::Board(string fen_init) {
         if (piece.get_type() != none) {
             amount_of_pieces++;
             if (piece.get_type() == king) { king_positions[piece.get_color()] = i; }
-            if (piece.get_color()) { white_positions.push_back(i); }
-            else { black_positions.push_back(i); }
+            if (piece.get_color()) { white_positions.insert(i); }
+            else { black_positions.insert(i); }
         }
         i++;
     }
@@ -89,11 +89,49 @@ Board::Board(string fen_init) {
     if (en_passant_square != -1) { en_passant_updated_this_move = true; }
     fifty_moves_rule_count = get<2>(converted_fen);
     move_count = get<3>(converted_fen);
+    store_current_position();
 }
 
-void Board::generate_piece_moves() {
-
+game_ends Board::generate_piece_moves() {
     auto time_before = chrono::high_resolution_clock::now();
+    // compute available pre update game end szenarios
+    if (fifty_moves_rule_count > 99) { return fifty_move_rule; }
+    int count_pieces = 0;
+    bool enough_material = false;
+    int bishops[2] = {0, 0};
+    int knights[2] = {0, 0};
+    for (auto piece_index: white_positions) {
+        Piece &piece = board[piece_index];
+        if (piece.get_type() == pawn || piece.get_type() == rook || piece.get_type() == queen) {
+            enough_material = true;
+            break;
+        }
+        if (piece.get_type() == bishop) { bishops[(piece_index / 8 % 2 + piece_index % 2) % 2]++; }
+        else if (piece.get_type() == knight) { knights[1]++; }
+        count_pieces++;
+    }
+    if (!enough_material) {
+        for (auto piece_index: black_positions) {
+            Piece &piece = board[piece_index];
+            if (piece.get_type() == pawn || piece.get_type() == rook || piece.get_type() == queen) {
+                enough_material = true;
+                break;
+            }
+            if (piece.get_type() == bishop) { bishops[(piece_index / 8 % 2 + piece_index % 2) % 2]++; }
+            else if (piece.get_type() == knight && knights[1] != 0) {
+                enough_material = true;
+                break;
+            } else if (piece.get_type() == knight && knights[1] == 0) { knights[0]++; }
+            count_pieces++;
+        }
+    }
+    if (!enough_material && (count_pieces < 4 || count_pieces == 4 && (knights[0] == 0 && knights[1] == 2 ||
+                                                                       knights[1] == 0 && knights[0] == 2) ||
+                             knights[0] + knights[1] == 0 && (bishops[0] == 0 || bishops[1] == 0))) {
+        return insufficient_material;
+    }
+
+
     checking.clear();
     pinning.clear();
     en_passant_pinning.clear(), defended_squares.clear();
@@ -103,8 +141,12 @@ void Board::generate_piece_moves() {
 
     bool castling_rights_this_move[2]{true, true};
 
-    vector<int> &opponent_pieces = (current_player ? black_positions : white_positions);
-    vector<int> &own_pieces = (current_player ? white_positions : black_positions);
+    unordered_set<int> &opponent_pieces = (current_player ? black_positions : white_positions);
+    unordered_set<int> &own_pieces = (current_player ? white_positions : black_positions);
+
+
+
+
     // get only collision detection and pinning/ checking
     bool first_piece_found; // active if collision detected but pin still possible
     bool en_passant_pin_exception = false; // if true, a pair of pawns has already been found
@@ -116,14 +158,14 @@ void Board::generate_piece_moves() {
                 // disable castling if opponent sees part of king castling route
                 // short
                 if (castling_rights[2 * current_player] && castling_rights_this_move[0]) {
-                    if (destination_square <= castling_end_squares[0] - 56 * current_player &&
+                    if (destination_square <= castling_end_squares[current_player][0] &&
                         destination_square > king_positions[current_player]) {
                         castling_rights_this_move[0] = false;
                     }
                     //long
                 } else if (castling_rights[2 * current_player + 1] && castling_rights_this_move[1] &&
                            opponent_piece.get_color() != current_player) {
-                    if (destination_square >= castling_end_squares[1] - 56 * current_player &&
+                    if (destination_square >= castling_end_squares[current_player][1] &&
                         destination_square < king_positions[current_player]) {
                         castling_rights_this_move[1] = false;
                     }
@@ -155,13 +197,13 @@ void Board::generate_piece_moves() {
                 // disable castling if opponent sees part of king castling route
                 //short
                 if (castling_rights[2 * current_player] && castling_rights_this_move[0]) {
-                    if (destination_square <= castling_end_squares[0] - 56 * current_player &&
+                    if (destination_square <= castling_end_squares[current_player][0] &&
                         destination_square > king_positions[current_player]) {
                         castling_rights_this_move[0] = false;
                     }
                     //long
                 } else if (castling_rights[2 * current_player + 1] && castling_rights_this_move[1]) {
-                    if (destination_square >= castling_end_squares[1] - 56 * current_player &&
+                    if (destination_square >= castling_end_squares[current_player][1] &&
                         destination_square < king_positions[current_player]) {
                         castling_rights_this_move[1] = false;
                     }
@@ -180,63 +222,7 @@ void Board::generate_piece_moves() {
 
         } else if (opponent_piece.get_type() == bishop || opponent_piece.get_type() == rook ||
                    opponent_piece.get_type() == queen) {
-
-            // see if castling lanes are empty in case of rook, later for own pieces
-            //king side
-            /*
-            if (castling_rights[2 * current_player] && castling_rights_this_move[0] &&
-                opponent_piece.get_type() == rook && opponent_piece.get_color() == current_player &&
-                opponent_piece_position > king_positions[current_player]) {
-                bool king_present = false, rook_present = false;
-                for (int tile = min(castling_end_squares[2] - 56 * current_player, king_positions[current_player]);
-                     tile < max(castling_end_squares[0] - 56 * current_player, opponent_piece_position); tile++) {
-                    if (board[tile].get_type() == none) {
-                        continue;
-                    } else if (!king_present && board[tile].get_color() == current_player &&
-                               board[tile].get_type() == king) {
-                        king_present = true;
-                        continue;
-                    } else if (!rook_present && board[tile].get_color() == current_player &&
-                               board[tile].get_type() == rook) {
-                        rook_present = true;
-                        continue;
-                    } else {
-                        castling_rights_this_move[0] = false;
-                        break;
-                    }
-                }
-            }
-
-            //queen side
-            if (castling_rights[2 * current_player + 1] && castling_rights_this_move[1] &&
-                opponent_piece.get_type() == rook && opponent_piece.get_color() == current_player &&
-                opponent_piece_position < king_positions[current_player]) {
-                bool king_present = false, rook_present = false;
-                for (int tile = min(castling_end_squares[1] - 56 * current_player, opponent_piece_position); tile <
-                                                                                                 max(castling_end_squares[3] -
-                                                                                                     56 *
-                                                                                                     current_player,
-                                                                                                     king_positions[current_player]); tile++) {
-                    if (board[tile].get_type() == none) {
-                        continue;
-                    } else if (!king_present && board[tile].get_color() == current_player &&
-                               board[tile].get_type() == king) {
-                        king_present = true;
-                        continue;
-                    } else if (!rook_present && board[tile].get_color() == current_player &&
-                               board[tile].get_type() == rook) {
-                        rook_present = true;
-                        continue;
-                    } else {
-                        castling_rights_this_move[1] = false;
-                        break;
-                    }
-                }
-            }
-             */
-
-
-            short int *sliding_lengths = sliding_piece_distances[opponent_piece.get_int_type() -
+            short int *sliding_lengths = sliding_piece_distances[opponent_piece.get_type() -
                                                                  3][opponent_piece_position];
 
             // go through every viewing direction
@@ -255,14 +241,14 @@ void Board::generate_piece_moves() {
                         // disable castling if opponent sees part of king castling route
                         // short
                         if (castling_rights[2 * current_player] && castling_rights_this_move[0]) {
-                            if (destination_square <= castling_end_squares[0] - 56 * current_player &&
+                            if (destination_square <= castling_end_squares[current_player][0] &&
                                 destination_square > king_positions[current_player]) {
                                 castling_rights_this_move[0] = false;
                             }
                             //long
                         } else if (castling_rights[2 * current_player + 1] && castling_rights_this_move[1] &&
                                    opponent_piece.get_color() != current_player) {
-                            if (destination_square >= castling_end_squares[1] - 56 * current_player &&
+                            if (destination_square >= castling_end_squares[current_player][1] &&
                                 destination_square < king_positions[current_player]) {
                                 castling_rights_this_move[1] = false;
                             }
@@ -291,13 +277,12 @@ void Board::generate_piece_moves() {
                             // 3) next square is still part of moving direction, 4) next square has opponent pawn
 
                             if (abs(current_move_direction) == 1 && destination_piece.get_type() == pawn &&
-                                opponent_move != move_length &&
-                                board[opponent_piece_position +
-                                      (opponent_move + 1) * current_move_direction].get_type() ==
-                                pawn &&
-                                board[opponent_piece_position +
-                                      (opponent_move + 1) * current_move_direction].get_color() ==
-                                current_player) {
+                                opponent_move != move_length && board[opponent_piece_position + (opponent_move + 1) *
+                                                                                                current_move_direction].get_type() ==
+                                                                pawn && board[opponent_piece_position +
+                                                                              (opponent_move + 1) *
+                                                                              current_move_direction].get_color() ==
+                                                                        current_player) {
                                 pinned_piece = opponent_piece_position + (opponent_move + 1) * current_move_direction;
                                 first_piece_found = true;
                                 en_passant_pin_exception = true;
@@ -318,8 +303,7 @@ void Board::generate_piece_moves() {
                                    board[opponent_piece_position +
                                          (opponent_move - 1) * current_move_direction].get_type() == pawn &&
                                    board[opponent_piece_position +
-                                         (opponent_move - 1) * current_move_direction].get_color() ==
-                                   current_player) {
+                                         (opponent_move - 1) * current_move_direction].get_color() == current_player) {
                             // en passant case with first own piece then opponent piece
                             en_passant_pin_exception = true;
                             continue;
@@ -361,6 +345,7 @@ void Board::generate_piece_moves() {
     // compute own moves depending on if checked or not
     int en_passant_pawn_counter = 0;
     int move_index = 0;
+    bool piece_is_pinned = false;
     if (checking_lines.size() > 1) {
         for (const int &own_piece: own_pieces) {
             board[own_piece].set_amount_moves(0);
@@ -381,8 +366,9 @@ void Board::generate_piece_moves() {
     } else if (!checking_lines.empty()) {
         for (int own_piece_position: own_pieces) {
             Piece &own_piece = board[own_piece_position];
-            bool piece_is_pinned = false;
+            piece_is_pinned = false;
             int pin_index = 0;
+            move_index = 0;
 
             // see if piece is pinned
             for (auto pin: pinning) {
@@ -394,7 +380,6 @@ void Board::generate_piece_moves() {
             }
             if (piece_is_pinned) {
                 own_piece.set_amount_moves(0);
-                pinning.erase(pinning.begin() + pin_index);
                 continue;
             }
             if (own_piece.get_type() == pawn) {
@@ -457,7 +442,10 @@ void Board::generate_piece_moves() {
                 for (auto moving_direction: sliding_move_directions) {
                     int destination_square = own_piece_position + moving_direction;
                     Piece &destination_piece = board[destination_square];
-                    if ((destination_piece.get_type() == none || destination_piece.get_color() != current_player) &&
+                    if (abs(own_piece_position / 8 - (destination_square) / 8) < 2 &&
+                        abs(own_piece_position % 8 - (destination_square) % 8) < 2 &&
+                        destination_square > -1 && destination_square < 64 &&
+                        (destination_piece.get_type() == none || destination_piece.get_color() != current_player) &&
                         defended_squares.find(destination_square) == defended_squares.end()) {
                         own_piece.set_moves(move_index, destination_square);
                         move_index++;
@@ -468,11 +456,13 @@ void Board::generate_piece_moves() {
 
         }
     } else {
+
         // no check
         for (int own_piece_position: own_pieces) {
             Piece &own_piece = board[own_piece_position];
-            bool piece_is_pinned = false;
+            pinned_piece = false;
             int pin_index = 0;
+            move_index = 0;
 
             // see if piece is pinned
             for (auto pin: pinning) {
@@ -546,7 +536,6 @@ void Board::generate_piece_moves() {
                             }
                         }
                     }
-                    pinning.erase(pinning.begin() + pin_index);
                 } else {
                     // no normal pin
 
@@ -596,21 +585,238 @@ void Board::generate_piece_moves() {
                 own_piece.set_amount_moves(move_index);
             } else if (own_piece.get_type() == knight) {
                 if (piece_is_pinned) {
-                    pinning.erase(pinning.begin() + pin_index);
                     own_piece.set_amount_moves(0);
                     continue;
                 }
+                for (int moving_direction: knight_moving_directions) {
+                    int destination_square = own_piece_position + moving_direction;
+                    // move is not within board (not L-shaped)
+                    if (abs(destination_square / 8 - own_piece_position / 8) +
+                        abs(destination_square % 8 - own_piece_position % 8) != 3 || destination_square < 0 ||
+                        destination_square > 63) {
+                        continue;
+                    }
+                    Piece &destination_piece = board[destination_square];
+                    if (destination_piece.get_type() == none || destination_piece.get_color() != current_player) {
+                        own_piece.set_moves(move_index, destination_square);
+                        move_index++;
+                    }
+                }
+                own_piece.set_amount_moves(move_index);
             } else if (own_piece.get_type() == bishop || own_piece.get_type() == rook ||
                        own_piece.get_type() == queen) {
 
+                // use positioning of rooks to compute blockage of castling lines
+                if (own_piece.get_type() == rook) {
+                    // short
+                    int piece_count = 0;
+                    if (castling_rights_this_move[0] && castling_rights[current_player * 2] &&
+                        own_piece_position > king_positions[current_player] &&
+                        own_piece_position / 8 == king_positions[current_player] / 8) {
+                        if (piece_is_pinned) { castling_rights_this_move[0] = false; }
+                        else {
+                            for (int square = min(king_positions[current_player],
+                                                  castling_end_squares[current_player][2]);
+                                 square <= max(own_piece_position, castling_end_squares[current_player][0]); square++) {
+                                if (board[square].get_type() != none) {
+                                    piece_count++;
+                                    if (piece_count == 3) { break; }
+                                }
+
+                            }
+                            if (piece_count == 3) { castling_rights_this_move[0] = false; }
+                        }
+                    } else if (castling_rights_this_move[1] && castling_rights[current_player * 2 + 1] &&
+                               own_piece_position < king_positions[current_player] &&
+                               own_piece_position / 8 == king_positions[current_player] / 8) {
+                        if (piece_is_pinned) { castling_rights_this_move[1] = false; }
+                        else {
+                            for (int square = max(king_positions[current_player],
+                                                  castling_end_squares[current_player][3]);
+                                 square >= min(own_piece_position, castling_end_squares[current_player][1]); square--) {
+                                if (board[square].get_type() != none) {
+                                    piece_count++;
+                                    if (piece_count == 3) { break; }
+                                }
+                            }
+                            if (piece_count == 3) { castling_rights_this_move[1] = false; }
+                        }
+                    }
+                }
+
+                // diagonally pinned rooks and straightly pinned bishops never have moves within their pin
+                if (piece_is_pinned && (own_piece.get_type() == rook && (abs(get<1>(pinning.at(pin_index))) == 7 ||
+                                                                         abs(get<1>(pinning.at(pin_index))) == 9) ||
+                                        own_piece.get_type() == bishop && (abs(get<1>(pinning.at(pin_index))) == 1 ||
+                                                                           abs(get<1>(pinning.at(pin_index))) == 8))) {
+                    own_piece.set_amount_moves(0);
+                    continue;
+                }
+
+                // start actual move update cycle
+                short int *sliding_lengths = sliding_piece_distances[own_piece.get_type() - 3][own_piece_position];
+
+                // go through every viewing direction
+
+                for (int direction = 0; direction < 8; direction++) {
+                    const int &move_length = sliding_lengths[direction];
+                    const int &current_move_direction = sliding_move_directions[direction];
+
+                    // go through the maximum amount of moves in said direction
+                    for (int current_move = 1; current_move <= move_length; current_move++) {
+                        int destination_square = own_piece_position + current_move * current_move_direction;
+                        Piece &destination_piece = board[destination_square];
+                        if (piece_is_pinned) {
+                            auto &current_pin = pinning.at(pin_index);
+                            int max_dist = (king_positions[current_player] - get<0>(current_pin)) / get<1>(current_pin);
+                            if (destination_square % get<1>(current_pin) == get<0>(current_pin) % get<1>(current_pin) &&
+                                abs((destination_square - get<0>(current_pin)) / get<1>(current_pin)) < max_dist) {
+                                own_piece.set_moves(move_index, destination_square);
+                                move_index++;
+                                if (destination_piece.get_type() != none) {
+                                    break;
+                                }
+                            } else { break; }
+                        } else {
+                            if (destination_piece.get_type() == none) {
+                                own_piece.set_moves(move_index, destination_square);
+                                move_index++;
+                            } else {
+                                if (destination_piece.get_color() != current_player) {
+                                    own_piece.set_moves(move_index, destination_square);
+                                    move_index++;
+                                }
+                                break;
+                            }
+                        }
+                    }
+                }
+                own_piece.set_amount_moves(move_index);
             } else if (own_piece.get_type() == king) {
+                for (auto moving_direction: sliding_move_directions) {
+                    if (abs(own_piece_position / 8 - (own_piece_position + moving_direction) / 8) < 2 &&
+                        abs(own_piece_position % 8 - (own_piece_position + moving_direction) % 8) < 2 &&
+                        own_piece_position + moving_direction > -1 && own_piece_position + moving_direction < 64 &&
+                        (board[own_piece_position + moving_direction].get_type() == none ||
+                         board[own_piece_position + moving_direction].get_color() != current_player) &&
+                        defended_squares.find(own_piece_position + moving_direction) == defended_squares.end()) {
+                        own_piece.set_moves(move_index, own_piece_position + moving_direction);
+                        move_index++;
+                    }
+                }
+                own_piece.set_amount_moves(move_index);
 
             } else { throw invalid_argument("received invalid own piece type computing normal update cycle"); }
         }
+        // add castling
+        if (castling_rights_this_move[0] && castling_rights[current_player * 2]) {
+            board[king_positions[current_player]].add_move(king_positions[current_player] + 2);
+        }
+        if (castling_rights_this_move[1] && castling_rights[current_player * 2 + 1]) {
+            board[king_positions[current_player]].add_move(king_positions[current_player] - 2);
+        }
 
     }
+    // deal with game end
+    // threefold
+    if (positions.size() - undo_count > 5) {
+        int found_position = 1;
+        stored_position &compare_to = positions.at(positions.size() - 1 - undo_count);
+        for (int i = 0; i < positions.size() - 1 - undo_count; i++) {
+            stored_position &other = positions.at(i);
+            if (compare_to == other) {
+                found_position++;
+                if (found_position == 3) { return threefold; }
+            }
+        }
+    }
+
+
+    // checkmates and stalemate
+    bool moves = false;
+    for (auto piece: own_pieces) {
+        if (board[piece].get_amount_moves() > 0) {
+            moves = true;
+            break;
+        }
+    }
+    if (moves) { return not_over; }
+    else if (!checking.empty()) { return current_player ? black_win : white_win; }
+    else { return stalemate; }
+
     auto end_time = chrono::high_resolution_clock::now();
     auto time = end_time - time_before;
     //cout << "Time needed: " << time / std::chrono::nanoseconds(1) << endl;
+    return not_over;
+}
 
+bool Board::make_move(int starting_square, int destination_square, int promotion_type = 0) {
+    Piece &piece = board[starting_square];
+    unordered_set<int> &own_pieces = current_player ? white_positions : black_positions;
+    unordered_set<int> &opponent_pieces = current_player?black_positions:white_positions;
+    int old_rook_pos = -1;
+    int new_rook_pos = -1;
+    int piece_taken_pos = destination_square;
+    // erase for deleting from set by value
+    if (undo_count > 0) {
+        move_history.erase(move_history.end() - 1 - undo_count, move_history.end());
+        positions.erase(positions.end() - 1 - undo_count, positions.end());
+        undo_count = 0;
+    }
+    if (piece.get_type() == king && abs(starting_square - destination_square) == 2) {
+        // find and set rook
+        if (destination_square > starting_square && castling_rights[current_player * 2]) {
+            for (int i = starting_square + 1; i < starting_square / 8 + 8; i++) {
+                if (board[i].get_type() == rook) {
+                    board[castling_end_squares[current_player][2]] = board[i];
+                    own_pieces.erase(i);
+                    own_pieces.insert(castling_end_squares[current_player][2]);
+                    old_rook_pos = i;
+                    new_rook_pos = castling_end_squares[current_player][2];
+                    destination_square = castling_end_squares[current_player][0];
+                }
+            }
+        } else if (destination_square < starting_square && castling_rights[current_player * 2 + 1]) {
+            for (int i = starting_square - 1; i > starting_square / 8 - 1; i--) {
+                if (board[i].get_type() == rook) {
+                    board[castling_end_squares[current_player][3]] = board[i];
+                    own_pieces.erase(i);
+                    own_pieces.insert(castling_end_squares[current_player][3]);
+                    old_rook_pos = i;
+                    new_rook_pos = castling_end_squares[current_player][3];
+                    destination_square = castling_end_squares[current_player][1];
+                }
+            }
+        } else { return false; }
+    }
+    if (piece.get_type() == pawn && destination_square == en_passant_square) {
+        piece_taken_pos = starting_square / 8 * 8 + destination_square % 8;
+    }
+    move_history.push_back(
+            stored_move{starting_square, destination_square, piece.get_type(), board[piece_taken_pos].get_type(),
+                        piece_taken_pos, en_passant_square,
+                        {castling_rights[0], castling_rights[1], castling_rights[2], castling_rights[3]}, old_rook_pos,
+                        new_rook_pos});
+
+    board[piece_taken_pos] = Piece();
+
+
+
+    store_current_position();
+    return true;
+}
+
+void Board::store_current_position() {
+    double position = 0;
+    int castles = 0;
+    for (auto i: white_positions) {
+        position += (board[i].get_color() * 6 + board[i].get_type()) * pow(13, i);
+    }
+    for (auto i: black_positions) {
+        position += (board[i].get_color() * 6 + board[i].get_type()) * pow(13, i);
+    }
+    for (int i = 0; i < 4; i++) {
+        castles += castling_rights[i] * (int) pow(2, i);
+    }
+    positions.push_back(stored_position{position, en_passant_square, castles});
 }

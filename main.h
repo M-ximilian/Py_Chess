@@ -8,6 +8,7 @@
 #include <iostream>
 #include <cmath>
 #include <vector>
+#include <array>
 #include <unordered_set>
 #include <algorithm>
 #include <limits>
@@ -29,11 +30,12 @@ struct stored_move {
     int piece_taken_at;
     int en_passant_square;
     bool castling_rights[4]; // from before move
+    int move_rule_count;
     int previews_rook_square, new_rook_square;
 };
 struct stored_position {
 public:
-    double position;
+    array<int, 64> position;
     int en_passant_square;
     int castles;
     bool operator==(const stored_position & other) const {

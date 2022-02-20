@@ -53,3 +53,21 @@ int convert_piece(char piece) {
             return 0;
     }
 }
+char convert_piece(Piece piece) {
+    switch (piece.get_type()) {
+        case pawn:
+            return piece.get_color()?'P':'p';
+        case knight:
+            return piece.get_color()?'N':'n';
+        case bishop:
+            return piece.get_color()?'B':'b';
+        case rook:
+            return piece.get_color()?'R':'r';
+        case queen:
+            return piece.get_color()?'Q':'q';
+        case king:
+            return piece.get_color()?'K':'k';
+        default:
+            return '#';
+    }
+}

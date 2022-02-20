@@ -3,11 +3,11 @@
 
 int main() {
     std::cout << "Hello, World!" << std::endl;
-    Board b = Board("1q2k3/8/7p/7P/2Q5/3R4/1q6/K7 w - - 0 1");
+    Board b = Board("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQK2R w KQkq - 0 1");
     auto time_before = chrono::high_resolution_clock::now();
     game_ends g;
     for (int i = 0; i < 1; i++) {
-        g = b.generate_piece_moves();
+        b.run();
         //cout << g << endl;
     }
     auto end_time = chrono::high_resolution_clock::now();

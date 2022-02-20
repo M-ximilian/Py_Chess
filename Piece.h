@@ -73,5 +73,6 @@ private:
 };
 
 int convert_piece(char);
+char convert_piece(Piece);
 
 #endif //PY_CHESS_PIECE_H

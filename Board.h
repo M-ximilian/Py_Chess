@@ -14,6 +14,10 @@ public:
 
     game_ends generate_piece_moves();
 
+    void undo();
+
+    void run();
+
 private:
     Piece board[64];
 
@@ -30,7 +34,6 @@ private:
     int move_count;
     bool en_passant_from_fen = true;
     int undo_count = 0;
-    int amount_of_pieces = 0;
     vector<stored_move> move_history{};
     vector<stored_position> positions{};
     stored_move no_move = stored_move{-1, -1,none, none, -1, -1, {false, false, false, false}};
@@ -50,7 +53,7 @@ private:
 
     void store_current_position();
 
-    void undo();
+    void draw();
 };
 
 

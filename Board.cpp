@@ -4,7 +4,7 @@
 
 #include "Board.h"
 
-tuple<bool, int, int, int> convert_fen_to_position(string fen, Piece *board, bool *castling_rights) {
+tuple<bool, int, int, int> convert_fen_to_position(string fen, Piece * board, bool *castling_rights) {
     bool first_moving_player = true;
     int en_passant_square = -1;
     int fifty_move_rule_counter;
@@ -77,7 +77,6 @@ Board::Board(string fen_init) {
     int i = 0;
     for (auto piece: board) {
         if (piece.get_type() != none) {
-            amount_of_pieces++;
             if (piece.get_type() == king) { king_positions[piece.get_color()] = i; }
             if (piece.get_color()) { white_positions.insert(i); }
             else { black_positions.insert(i); }
@@ -460,7 +459,7 @@ game_ends Board::generate_piece_moves() {
         // no check
         for (int own_piece_position: own_pieces) {
             Piece &own_piece = board[own_piece_position];
-            pinned_piece = false;
+            piece_is_pinned = false;
             int pin_index = 0;
             move_index = 0;
 
@@ -759,8 +758,8 @@ bool Board::make_move(int starting_square, int destination_square, int promotion
     int piece_taken_pos = destination_square;
     // erase for deleting from set by value
     if (undo_count > 0) {
-        move_history.erase(move_history.end() - 1 - undo_count, move_history.end());
-        positions.erase(positions.end() - 1 - undo_count, positions.end());
+        move_history.erase(move_history.end() - undo_count, move_history.end());
+        positions.erase(positions.end() - undo_count, positions.end());
         undo_count = 0;
     }
     if (piece.get_type() == king && abs(starting_square - destination_square) == 2) {
@@ -770,6 +769,7 @@ bool Board::make_move(int starting_square, int destination_square, int promotion
                 if (board[i].get_type() == rook) {
                     board[castling_end_squares[current_player][2]] = board[i];
                     own_pieces.erase(i);
+                    board[i] = Piece();
                     own_pieces.insert(castling_end_squares[current_player][2]);
                     old_rook_pos = i;
                     new_rook_pos = castling_end_squares[current_player][2];
@@ -781,6 +781,7 @@ bool Board::make_move(int starting_square, int destination_square, int promotion
                 if (board[i].get_type() == rook) {
                     board[castling_end_squares[current_player][3]] = board[i];
                     own_pieces.erase(i);
+                    board[i] = Piece();
                     own_pieces.insert(castling_end_squares[current_player][3]);
                     old_rook_pos = i;
                     new_rook_pos = castling_end_squares[current_player][3];
@@ -795,18 +796,22 @@ bool Board::make_move(int starting_square, int destination_square, int promotion
     move_history.push_back(
             stored_move{starting_square, destination_square, piece.get_type(), board[piece_taken_pos].get_type(),
                         piece_taken_pos, en_passant_square,
-                        {castling_rights[0], castling_rights[1], castling_rights[2], castling_rights[3]}, old_rook_pos,
+                        {castling_rights[0], castling_rights[1], castling_rights[2], castling_rights[3]},fifty_moves_rule_count, old_rook_pos,
                         new_rook_pos});
 
-    if (board[piece_taken_pos].get_type() != none) {amount_of_pieces--;}
+    // update 50 move rule counter if necessary
+    if (board[piece_taken_pos].get_type() != none || piece.get_type() == pawn) {fifty_moves_rule_count = 0;}
 
+    //handle taken piece
     board[piece_taken_pos] = Piece();
     opponent_pieces.erase(piece_taken_pos);
+    // handle promotions
     if (promotion_type < 2 || promotion_type > 5) {
         board[destination_square] = board[starting_square];
     } else {
         board[destination_square] = Piece(current_player, promotion_type);
     }
+    // reset original piece square
     board[starting_square] = Piece();
 
     own_pieces.erase(starting_square);
@@ -816,27 +821,79 @@ bool Board::make_move(int starting_square, int destination_square, int promotion
         castling_rights[current_player*2+(destination_square > king_positions[current_player])] = false;
     }
     else if (board[destination_square].get_type() == king) {
-        castling_rights[0] = false;
-        castling_rights[1] = false;
+        castling_rights[current_player*2] = false;
+        castling_rights[current_player*2+1] = false;
         king_positions[current_player] = destination_square;
     }
 
 
     store_current_position();
+    current_player = !current_player;
+    move_count++;
     return true;
 }
 void Board::undo() {
+    unordered_set<int> & own_pieces = current_player?black_positions:white_positions;
+    unordered_set<int> & opponent_pieces = current_player?white_positions:black_positions;
+    if (move_history.size()-undo_count == 0) {return;}
+    stored_move & last_move = move_history.at(move_history.size()-1-undo_count);
+    move_count--;
+    undo_count++;
+    current_player = !current_player;
+    fifty_moves_rule_count = last_move.move_rule_count;
+    en_passant_square = last_move.en_passant_square;
+    for (int i = 0; i<4;i++) {
+        castling_rights[i] = last_move.castling_rights[i];
+    }
+    if (last_move.new_rook_square != -1) {
+        board[last_move.previews_rook_square] = board[last_move.new_rook_square];
+        board[last_move.new_rook_square] = Piece();
+        own_pieces.erase(last_move.new_rook_square);
+        own_pieces.insert(last_move.previews_rook_square);
+    }
+    board[last_move.previews_square] = Piece(current_player, last_move.piece);
+    board[last_move.new_square] = Piece();
+    if (last_move.piece == king) {king_positions[current_player] = last_move.previews_square;}
+    own_pieces.erase(last_move.new_square);
+    own_pieces.insert(last_move.previews_square);
+
+    if (last_move.taken_piece != none) {
+        board[last_move.piece_taken_at] = Piece(!current_player, last_move.taken_piece);
+        opponent_pieces.insert(last_move.piece_taken_at);
+    }
+
 
 }
 
-void Board::store_current_position() {
-    double position = 0;
-    int castles = 0;
-    for (auto i: white_positions) {
-        position += (board[i].get_color() * 6 + board[i].get_type()) * pow(13, i);
+void Board::run() {
+    while (true) {
+        game_ends game_end = generate_piece_moves();
+        if (game_end != not_over) {draw();cout << game_end<< " over" << endl; break;}
+        draw();
+        string usermove;
+        cin >> usermove;
+        if (usermove == "undo") {cout << "undo" << endl;undo();continue;}
+        cout << "move " << (tolower(usermove[0])-97)+8*(usermove[1]-49) << " to " << (tolower(usermove[2])-97)+8*(usermove[3]-49) << " pro " << (usermove.size() == 5?convert_piece(tolower(usermove[4])):0) << endl;
+        make_move((tolower(usermove[0])-97)+8*(usermove[1]-49), (tolower(usermove[2])-97)+8*(usermove[3]-49), usermove.size() == 5?convert_piece(tolower(usermove[4])):0);
     }
-    for (auto i: black_positions) {
-        position += (board[i].get_color() * 6 + board[i].get_type()) * pow(13, i);
+}
+
+void Board::draw() {
+    char output[64]{'#'};
+    for  (int i = 0; i < 64; i++) {
+        output[(7-i/8)*8+i%8] = convert_piece(board[i]);
+    }
+    for (int i = 0; i< 64; i++) {
+        cout << output[i] << " ";
+        if (i % 8 == 7) {cout << endl;}
+    }
+}
+
+void Board::store_current_position() {
+    int castles = 0;
+    array<int, 64> position{};
+    for (int i = 0; i<64; i++) {
+        position[i] = board[i].get_color()*6+board[i].get_type();
     }
     for (int i = 0; i < 4; i++) {
         castles += castling_rights[i] * (int) pow(2, i);

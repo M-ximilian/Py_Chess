@@ -71,3 +71,22 @@ char convert_piece(Piece piece) {
             return '#';
     }
 }
+
+char convert_piece(piece_types piece) {
+    switch (piece) {
+        case pawn:
+            return 'P';
+        case knight:
+            return 'N';
+        case bishop:
+            return 'B';
+        case rook:
+            return 'R';
+        case queen:
+            return 'Q';
+        case king:
+            return 'K';
+        default:
+            return ' ';
+    }
+}

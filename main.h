@@ -15,7 +15,9 @@
 #include <string>
 #include <utility>
 #include <ctime>
+#include <time.h>
 #include <chrono>
+#include <random>
 
 using namespace std;
 enum piece_types {
@@ -25,13 +27,14 @@ enum game_ends {
     not_over, black_win, white_win, stalemate, threefold, fifty_move_rule, insufficient_material
 };
 struct stored_move {
-    int previews_square, new_square;
+    int previous_square, new_square;
     piece_types piece, taken_piece;
     int piece_taken_at;
     int en_passant_square;
     bool castling_rights[4]; // from before move
     int move_rule_count;
-    int previews_rook_square, new_rook_square;
+    int previous_rook_square, new_rook_square;
+    char promotion_type;
 };
 struct stored_position {
 public:

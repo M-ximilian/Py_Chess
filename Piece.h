@@ -52,6 +52,8 @@ public:
 
     piece_types get_type() { return type; };
 
+    int get_move(int index) {return moves[index];}
+
     [[nodiscard]] int get_amount_moves() const { return amount_moves; }
 
     void set_moves(const int *new_moves, int amount);
@@ -74,5 +76,6 @@ private:
 
 int convert_piece(char);
 char convert_piece(Piece);
+char convert_piece(piece_types);
 
 #endif //PY_CHESS_PIECE_H

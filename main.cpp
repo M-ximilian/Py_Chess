@@ -6,7 +6,8 @@ int main() {
     std::cout << "Hello, World!" << std::endl;
     auto time_before = chrono::high_resolution_clock::now();
     for (int i = 0; i < 100; i++) {
-        Board b = Board("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQK2R w KQkq - 0 1"); //break i == 5
+        //rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQK2R w KQkq - 0 1
+        Board b = Board("n2nn2n/8/8/n3n2n/n6n/8/8/n2nn2n w - - 0 1"); //break i == 5
         b.random_games();
         cout << "done" << endl;
     }

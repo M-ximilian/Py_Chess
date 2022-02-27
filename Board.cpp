@@ -4,7 +4,7 @@
 
 #include "Board.h"
 
-tuple<bool, int, int, int> convert_fen_to_position(string fen, Piece * board, bool *castling_rights) {
+tuple<bool, int, int, int> convert_fen_to_position(string fen, Piece *board, bool *castling_rights) {
     bool first_moving_player = true;
     int en_passant_square = -1;
     int fifty_move_rule_counter;
@@ -83,24 +83,32 @@ Board::Board(string fen_init) {
         }
         i++;
     }
-    // save rooks that could castle and correct castling_squares
+    // save rooks that could castle
     for (int r = 0; r < 64; r++) {
         if (board[r].get_type() == rook) {
             if (r < king_positions[board[r].get_color()]) {
-                if (king_positions[board[r].get_color()] - r < king_positions[board[r].get_color()] - original_castling_rook_positions[1-board[r].get_color()][1]) {
-                    original_castling_rook_positions[1-board[r].get_color()][1] = r;
+                if (king_positions[board[r].get_color()] - r < king_positions[board[r].get_color()] -
+                                                               original_castling_rook_positions[1 -
+                                                                                                board[r].get_color()][1] &&
+                    r / 8 == 7 * (1 - board[r].get_color())) {
+                    original_castling_rook_positions[1 - board[r].get_color()][1] = r;
                 }
             } else {
-                if (r-king_positions[board[r].get_color()] < original_castling_rook_positions[1-board[r].get_color()][0] - king_positions[board[r].get_color()]) {
-                    original_castling_rook_positions[1-board[r].get_color()][0] = r;
+                if (r - king_positions[board[r].get_color()] <
+                    original_castling_rook_positions[1 - board[r].get_color()][0] -
+                    king_positions[board[r].get_color()]) {
+                    original_castling_rook_positions[1 - board[r].get_color()][0] = r;
                 }
             }
         }
     }
-    if (original_castling_rook_positions[0][0] == 64) {castling_rights[0] = false;}
-    if (original_castling_rook_positions[0][1] == -1) {castling_rights[1] = false;}
-    if (original_castling_rook_positions[1][0] == 64) {castling_rights[2] = false;}
-    if (original_castling_rook_positions[1][1] == -1) {castling_rights[3] = false;}
+    // disable castling for every square where no rook is found
+    if (original_castling_rook_positions[0][0] == 64) { castling_rights[0] = false; }
+    if (original_castling_rook_positions[0][1] == -1) { castling_rights[1] = false; }
+    if (original_castling_rook_positions[1][0] == 64) { castling_rights[2] = false; }
+    if (original_castling_rook_positions[1][1] == -1) { castling_rights[3] = false; }
+
+    // update all other variables
     current_player = get<0>(converted_fen);
     en_passant_square = get<1>(converted_fen);
     if (en_passant_square != -1) { en_passant_updated_this_move = true; }
@@ -127,13 +135,16 @@ game_ends Board::generate_piece_moves() {
             count_pieces++;
             bishops[(piece_index / 8 % 2 + piece_index % 2) % 2]++;
             if (knights) {
-                enough_material = true; break;
+                enough_material = true;
+                break;
             }
-        }
-        else if (piece.get_type() == knight) {
+        } else if (piece.get_type() == knight) {
             count_pieces++;
             knights = true;
-            if (bishops[0] >0 || bishops[1] > 0) {enough_material = true; break;}
+            if (bishops[0] > 0 || bishops[1] > 0) {
+                enough_material = true;
+                break;
+            }
         } else {
             count_pieces++;
         }
@@ -148,12 +159,17 @@ game_ends Board::generate_piece_moves() {
             if (piece.get_type() == bishop) {
                 count_pieces++;
                 bishops[(piece_index / 8 % 2 + piece_index % 2) % 2]++;
-                if (knights) {enough_material = true; break;}
-            }
-            else if (piece.get_type() == knight) {
+                if (knights) {
+                    enough_material = true;
+                    break;
+                }
+            } else if (piece.get_type() == knight) {
                 count_pieces++;
                 knights = true;
-                if (bishops[0] >0 || bishops[1] > 0) {enough_material = true; break;}
+                if (bishops[0] > 0 || bishops[1] > 0) {
+                    enough_material = true;
+                    break;
+                }
             } else {
                 count_pieces++;
             }
@@ -168,7 +184,7 @@ game_ends Board::generate_piece_moves() {
     checking.clear();
     pinning.clear();
     en_passant_pinning.clear(), defended_squares.clear();
-    if (!en_passant_from_fen) { en_passant_updated_this_move = false;}
+    if (!en_passant_from_fen) { en_passant_updated_this_move = false; }
     else { en_passant_from_fen = false; }
     int pinned_piece;
 
@@ -186,7 +202,8 @@ game_ends Board::generate_piece_moves() {
     for (auto opponent_piece_position: opponent_pieces) {
         Piece &opponent_piece = board[opponent_piece_position];
         if (opponent_piece.get_type() == pawn) {
-            for (auto destination_square: {7 - 16 * current_player+opponent_piece_position, 9 - 16 * current_player+opponent_piece_position}) {
+            for (auto destination_square: {7 - 16 * current_player + opponent_piece_position,
+                                           9 - 16 * current_player + opponent_piece_position}) {
                 if (abs(opponent_piece_position % 8 - destination_square % 8) != 1) { continue; }
                 // disable castling if opponent sees part of king castling route
                 // short
@@ -203,7 +220,7 @@ game_ends Board::generate_piece_moves() {
                         castling_rights_this_move[1] = false;
                     }
                 } else if (destination_square == king_positions[current_player]) {
-                    checking.emplace_back(opponent_piece_position, destination_square-opponent_piece_position);
+                    checking.emplace_back(opponent_piece_position, destination_square - opponent_piece_position);
                 }
                 if (abs(king_positions[current_player] - destination_square) == 1 ||
                     abs(king_positions[current_player] - destination_square) == 7 ||
@@ -219,10 +236,10 @@ game_ends Board::generate_piece_moves() {
                 Piece &destination_piece = board[destination_square];
 
                 // skip moves that would leave board
-                if (!(abs(destination_square / 8 - opponent_piece_position / 8) == 2 &&
-                      abs(destination_square % 8 - opponent_piece_position % 8) == 1 ||
-                      (abs(destination_square / 8 - opponent_piece_position / 8) == 1 &&
-                       abs(destination_square % 8 - opponent_piece_position % 8) == 2)) || destination_square < 0 ||
+                if (!(destination_square / 8 - opponent_piece_position / 8 + destination_square % 8 -
+                      opponent_piece_position % 8 > -4 &&
+                      destination_square / 8 - opponent_piece_position / 8 + destination_square % 8 -
+                      opponent_piece_position % 8 < 4) || destination_square < 0 ||
                     destination_square > 63) {
                     continue;
                 }
@@ -436,19 +453,25 @@ game_ends Board::generate_piece_moves() {
                     }
                 }
                 // en passant that blockes check not possible in normal game, only if given via fen
-                if (en_passant_square != -1 && en_passant_updated_this_move && en_passant_pawn_counter < 2 &&
+                /*if (en_passant_square != -1 && en_passant_updated_this_move && en_passant_pawn_counter < 2 &&
                     abs(en_passant_square - own_piece_position + (current_player ? 8 : -8)) == 1 &&
                     find(checking_lines.at(0).begin(), checking_lines.at(0).end(), en_passant_square) !=
                     checking_lines.at(0).end()) {
                     own_piece.set_moves(move_index, en_passant_square);
                     en_passant_pawn_counter++;
                     move_index++;
-                }
+                }*/
                 own_piece.set_amount_moves(move_index);
             } else if (own_piece.get_type() == knight) {
                 for (auto direction: knight_moving_directions) {
                     int destination_square = own_piece_position + direction;
-                    if (find(checking_lines.at(0).begin(), checking_lines.at(0).end(), destination_square) !=
+                    // check if move blocks check while preserving L-shape, control of 0 <= move < 64 not necessary,
+                    // can be assumed because of reach of pin line
+                    if ((destination_square / 8 - own_piece_position / 8 + destination_square % 8 -
+                         own_piece_position % 8 > -4 &&
+                         destination_square / 8 - own_piece_position / 8 + destination_square % 8 -
+                         own_piece_position % 8 < 4) &&
+                        find(checking_lines.at(0).begin(), checking_lines.at(0).end(), destination_square) !=
                         checking_lines.at(0).end()) {
                         own_piece.set_moves(move_index, destination_square);
                         move_index++;
@@ -535,8 +558,7 @@ game_ends Board::generate_piece_moves() {
                             if (en_passant_square == -1 && !en_passant_updated_this_move) {
                                 en_passant_updated_this_move = true;
                                 stored_move *last = last_move();
-                                if (last->piece == pawn && last->previous_square / 8 == (current_player ? 6 : 1) &&
-                                    abs(last->previous_square - last->new_square) == 16) {
+                                if (last->piece == pawn && abs(last->previous_square - last->new_square) == 16) {
                                     en_passant_square = last->previous_square + (current_player ? -8 : 8);
                                 }
                             }
@@ -580,8 +602,7 @@ game_ends Board::generate_piece_moves() {
                     if (en_passant_square == -1 && !en_passant_updated_this_move) {
                         en_passant_updated_this_move = true;
                         stored_move *last = last_move();
-                        if (last->piece == pawn && last->previous_square / 8 == (current_player ? 6 : 1) &&
-                            abs(last->previous_square - last->new_square) == 16) {
+                        if (last->piece == pawn && abs(last->previous_square - last->new_square) == 16) {
                             en_passant_square = last->previous_square + (current_player ? -8 : 8);
                         }
                     }
@@ -628,8 +649,10 @@ game_ends Board::generate_piece_moves() {
                 for (int moving_direction: knight_moving_directions) {
                     int destination_square = own_piece_position + moving_direction;
                     // move is not within board (not L-shaped)
-                    if (abs(destination_square / 8 - own_piece_position / 8) +
-                        abs(destination_square % 8 - own_piece_position % 8) != 3 || destination_square < 0 ||
+                    if (!(destination_square / 8 - own_piece_position / 8 + destination_square % 8 -
+                          own_piece_position % 8 > -4 &&
+                          destination_square / 8 - own_piece_position / 8 + destination_square % 8 -
+                          own_piece_position % 8 < 4) || destination_square < 0 ||
                         destination_square > 63) {
                         continue;
                     }
@@ -649,8 +672,7 @@ game_ends Board::generate_piece_moves() {
                     // short
                     int piece_count = 0;
                     if (castling_rights_this_move[0] && castling_rights[current_player * 2] &&
-                        own_piece_position > king_positions[current_player] &&
-                        own_piece_position / 8 == king_positions[current_player] / 8) {
+                        own_piece_position == original_castling_rook_positions[1 - current_player][0]) {
                         if (piece_is_pinned) { castling_rights_this_move[0] = false; }
                         else {
                             for (int square = min(king_positions[current_player],
@@ -791,7 +813,7 @@ game_ends Board::generate_piece_moves() {
 bool Board::make_move(int starting_square, int destination_square, int promotion_type = 0) {
     Piece &piece = board[starting_square];
     unordered_set<int> &own_pieces = current_player ? white_positions : black_positions;
-    unordered_set<int> &opponent_pieces = current_player?black_positions:white_positions;
+    unordered_set<int> &opponent_pieces = current_player ? black_positions : white_positions;
     int old_rook_pos = -1;
     int new_rook_pos = -1;
     int piece_taken_pos = destination_square;
@@ -835,15 +857,37 @@ bool Board::make_move(int starting_square, int destination_square, int promotion
     move_history.push_back(
             stored_move{starting_square, destination_square, piece.get_type(), board[piece_taken_pos].get_type(),
                         piece_taken_pos, en_passant_square,
-                        {castling_rights[0], castling_rights[1], castling_rights[2], castling_rights[3]},fifty_moves_rule_count, old_rook_pos,
-                        new_rook_pos, convert_piece((piece_types)promotion_type)});
+                        {castling_rights[0], castling_rights[1], castling_rights[2], castling_rights[3]},
+                        fifty_moves_rule_count, old_rook_pos,
+                        new_rook_pos, convert_piece((piece_types) promotion_type)});
 
     // update 50 move rule counter if necessary
-    if (board[piece_taken_pos].get_type() != none || piece.get_type() == pawn) {fifty_moves_rule_count = 0;}
+    if (board[piece_taken_pos].get_type() != none || piece.get_type() == pawn) { fifty_moves_rule_count = 0; }
+
+    // update castling rights
+    if (board[starting_square].get_type() == rook) {
+        if (starting_square == original_castling_rook_positions[current_player][0]) {
+            castling_rights[2 * current_player] = false;
+        } else if (starting_square == original_castling_rook_positions[current_player][1]) {
+            castling_rights[2*current_player+1] = false;
+        }
+    } else if (board[starting_square].get_type() == king) {
+        castling_rights[current_player * 2] = false;
+        castling_rights[current_player * 2 + 1] = false;
+        king_positions[current_player] = destination_square;
+    }
+    if (board[piece_taken_pos].get_type() == rook) {
+        if (piece_taken_pos == original_castling_rook_positions[1-current_player][0]) {
+            castling_rights[2-2*current_player] = false;
+        } else if (piece_taken_pos == original_castling_rook_positions[1-current_player][1]) {
+            castling_rights[3-2*current_player] = false;
+        }
+    }
 
     //handle taken piece
     board[piece_taken_pos] = Piece();
     opponent_pieces.erase(piece_taken_pos);
+
     // handle promotions
     if (promotion_type < 2 || promotion_type > 5) {
         board[destination_square] = board[starting_square];
@@ -853,17 +897,12 @@ bool Board::make_move(int starting_square, int destination_square, int promotion
     // reset original piece square
     board[starting_square] = Piece();
 
+    // update own piece vector
     own_pieces.erase(starting_square);
     own_pieces.insert(destination_square);
 
-    if (board[destination_square].get_type() == rook) {
-        castling_rights[current_player*2+(starting_square > king_positions[current_player])] = false;
-    }
-    else if (board[destination_square].get_type() == king) {
-        castling_rights[current_player*2] = false;
-        castling_rights[current_player*2+1] = false;
-        king_positions[current_player] = destination_square;
-    }
+
+
 
 
     store_current_position();
@@ -872,34 +911,35 @@ bool Board::make_move(int starting_square, int destination_square, int promotion
     fifty_moves_rule_count++;
     return true;
 }
+
 void Board::undo() {
-    unordered_set<int> & own_pieces = current_player?black_positions:white_positions;
-    unordered_set<int> & opponent_pieces = current_player?white_positions:black_positions;
-    if (move_history.size()-undo_count == 0) {return;}
-    stored_move & last_move = move_history.at(move_history.size()-1-undo_count);
+    unordered_set<int> &own_pieces = current_player ? black_positions : white_positions;
+    unordered_set<int> &opponent_pieces = current_player ? white_positions : black_positions;
+    stored_move *last_played_move = last_move();
+    if (last_played_move->previous_square == -1) { return; }
     move_count--;
     undo_count++;
     current_player = !current_player;
-    fifty_moves_rule_count = last_move.move_rule_count;
-    en_passant_square = last_move.en_passant_square;
-    for (int i = 0; i<4;i++) {
-        castling_rights[i] = last_move.castling_rights[i];
+    fifty_moves_rule_count = last_played_move->move_rule_count;
+    en_passant_square = last_played_move->en_passant_square;
+    for (int i = 0; i < 4; i++) {
+        castling_rights[i] = last_played_move->castling_rights[i];
     }
-    if (last_move.new_rook_square != -1) {
-        board[last_move.previous_rook_square] = board[last_move.new_rook_square];
-        board[last_move.new_rook_square] = Piece();
-        own_pieces.erase(last_move.new_rook_square);
-        own_pieces.insert(last_move.previous_rook_square);
+    if (last_played_move->new_rook_square != -1) {
+        board[last_played_move->previous_rook_square] = board[last_played_move->new_rook_square];
+        board[last_played_move->new_rook_square] = Piece();
+        own_pieces.erase(last_played_move->new_rook_square);
+        own_pieces.insert(last_played_move->previous_rook_square);
     }
-    board[last_move.previous_square] = Piece(current_player, last_move.piece);
-    board[last_move.new_square] = Piece();
-    if (last_move.piece == king) {king_positions[current_player] = last_move.previous_square;}
-    own_pieces.erase(last_move.new_square);
-    own_pieces.insert(last_move.previous_square);
+    board[last_played_move->previous_square] = Piece(current_player, last_played_move->piece);
+    board[last_played_move->new_square] = Piece();
+    if (last_played_move->piece == king) { king_positions[current_player] = last_played_move->previous_square; }
+    own_pieces.erase(last_played_move->new_square);
+    own_pieces.insert(last_played_move->previous_square);
 
-    if (last_move.taken_piece != none) {
-        board[last_move.piece_taken_at] = Piece(!current_player, last_move.taken_piece);
-        opponent_pieces.insert(last_move.piece_taken_at);
+    if (last_played_move->taken_piece != none) {
+        board[last_played_move->piece_taken_at] = Piece(!current_player, last_played_move->taken_piece);
+        opponent_pieces.insert(last_played_move->piece_taken_at);
     }
 
 
@@ -908,13 +948,25 @@ void Board::undo() {
 void Board::run() {
     while (true) {
         game_ends game_end = generate_piece_moves();
-        if (game_end != not_over) {draw();cout << game_end<< " over" << endl; break;}
+        if (game_end != not_over) {
+            draw();
+            cout << game_end << " over" << endl;
+            break;
+        }
         draw();
         string usermove;
         cin >> usermove;
-        if (usermove == "undo") {cout << "undo" << endl;undo();continue;}
-        cout << "move " << (tolower(usermove[0])-97)+8*(usermove[1]-49) << " to " << (tolower(usermove[2])-97)+8*(usermove[3]-49) << " pro " << (usermove.size() == 5?convert_piece(tolower(usermove[4])):0) << endl;
-        make_move((tolower(usermove[0])-97)+8*(usermove[1]-49), (tolower(usermove[2])-97)+8*(usermove[3]-49), usermove.size() == 5?convert_piece(tolower(usermove[4])):0);
+        if (usermove == "undo") {
+            cout << "undo" << endl;
+            undo();
+            continue;
+        }
+        cout << "move " << (tolower(usermove[0]) - 97) + 8 * (usermove[1] - 49) << " to "
+             << (tolower(usermove[2]) - 97) + 8 * (usermove[3] - 49) << " pro "
+             << (usermove.size() == 5 ? convert_piece(tolower(usermove[4])) : 0) << endl;
+        make_move((tolower(usermove[0]) - 97) + 8 * (usermove[1] - 49),
+                  (tolower(usermove[2]) - 97) + 8 * (usermove[3] - 49),
+                  usermove.size() == 5 ? convert_piece(tolower(usermove[4])) : 0);
     }
 }
 
@@ -924,15 +976,15 @@ void Board::random_games() {
         cout << current_player << " " << move_count << endl << endl;
         get_pgn();
         if (generate_piece_moves() != not_over) {
-        return;
-    }
-        unordered_set<int> & own_pieces = current_player?white_positions:black_positions;
+            return;
+        }
+        unordered_set<int> &own_pieces = current_player ? white_positions : black_positions;
         while (true) {
             auto it = own_pieces.begin();
             int random = rand() % own_pieces.size();
             advance(it, random);
             Piece &chosen_piece = board[*it];
-            if (chosen_piece.get_amount_moves() == 0) {continue;}
+            if (chosen_piece.get_amount_moves() == 0) { continue; }
             int chosen_move = chosen_piece.get_move(rand() % chosen_piece.get_amount_moves());
             if (chosen_piece.get_type() == pawn && chosen_move / 8 == 7 * current_player) {
                 make_move(*it, chosen_move, rand() % 4 + 2);
@@ -947,21 +999,21 @@ void Board::random_games() {
 
 void Board::draw() {
     char output[64];
-    for (char &i:output) i = '#';
-    for  (int i = 0; i < 64; i++) {
-        output[(7-i/8)*8+i%8] = convert_piece(board[i]);
+    for (char &i: output) i = '#';
+    for (int i = 0; i < 64; i++) {
+        output[(7 - i / 8) * 8 + i % 8] = convert_piece(board[i]);
     }
-    for (int i = 0; i< 64; i++) {
+    for (int i = 0; i < 64; i++) {
         cout << output[i] << " ";
-        if (i % 8 == 7) {cout << endl;}
+        if (i % 8 == 7) { cout << endl; }
     }
 }
 
 void Board::store_current_position() {
     int castles = 0;
     array<int, 64> position{};
-    for (int i = 0; i<64; i++) {
-        position[i] = board[i].get_color()*6+board[i].get_type();
+    for (int i = 0; i < 64; i++) {
+        position[i] = board[i].get_color() * 6 + board[i].get_type();
     }
     for (int i = 0; i < 4; i++) {
         castles += castling_rights[i] * (int) pow(2, i);
@@ -971,7 +1023,7 @@ void Board::store_current_position() {
 
 void Board::get_pgn() {
     string pgn;
-    for (stored_move &current_move:move_history) {
+    for (stored_move &current_move: move_history) {
         if (current_move.previous_rook_square != -1) {
             if (current_move.new_rook_square > current_move.new_square) {
                 pgn += "O-O-O ";
@@ -981,12 +1033,13 @@ void Board::get_pgn() {
                 continue;
             }
         }
-        if (current_move.piece != pawn) {pgn.push_back(convert_piece(current_move.piece));}
-        pgn.push_back((char) (current_move.previous_square%8+97));
-        pgn.push_back((char) (current_move.previous_square/8+49));
-        pgn.push_back((char) (current_move.new_square%8+97));
-        pgn.push_back((char) (current_move.new_square/8+49));
-        if (current_move.promotion_type != 'P' && current_move.promotion_type != ' ' && current_move.promotion_type != 'K') {
+        if (current_move.piece != pawn) { pgn.push_back(convert_piece(current_move.piece)); }
+        pgn.push_back((char) (current_move.previous_square % 8 + 97));
+        pgn.push_back((char) (current_move.previous_square / 8 + 49));
+        pgn.push_back((char) (current_move.new_square % 8 + 97));
+        pgn.push_back((char) (current_move.new_square / 8 + 49));
+        if (current_move.promotion_type != 'P' && current_move.promotion_type != ' ' &&
+            current_move.promotion_type != 'K') {
             pgn.push_back(current_move.promotion_type);
         }
         pgn.push_back(' ');

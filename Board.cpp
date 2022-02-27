@@ -206,21 +206,21 @@ game_ends Board::generate_piece_moves() {
                                            9 - 16 * current_player + opponent_piece_position}) {
                 if (abs(opponent_piece_position % 8 - destination_square % 8) != 1) { continue; }
                 // disable castling if opponent sees part of king castling route
-                // short
-                if (castling_rights[2 * current_player] && castling_rights_this_move[0]) {
+                if (destination_square == king_positions[current_player]) {
+                    checking.emplace_back(opponent_piece_position, destination_square - opponent_piece_position);
+                }
+                    // short
+                else if (castling_rights[2 - 2 * current_player] && castling_rights_this_move[0]) {
                     if (destination_square <= castling_end_squares[current_player][0] &&
                         destination_square > king_positions[current_player]) {
                         castling_rights_this_move[0] = false;
                     }
                     //long
-                } else if (castling_rights[2 * current_player + 1] && castling_rights_this_move[1] &&
-                           opponent_piece.get_color() != current_player) {
+                } else if (castling_rights[3 - 2 * current_player] && castling_rights_this_move[1]) {
                     if (destination_square >= castling_end_squares[current_player][1] &&
                         destination_square < king_positions[current_player]) {
                         castling_rights_this_move[1] = false;
                     }
-                } else if (destination_square == king_positions[current_player]) {
-                    checking.emplace_back(opponent_piece_position, destination_square - opponent_piece_position);
                 }
                 if (abs(king_positions[current_player] - destination_square) == 1 ||
                     abs(king_positions[current_player] - destination_square) == 7 ||
@@ -239,28 +239,27 @@ game_ends Board::generate_piece_moves() {
                 if (!(destination_square / 8 - opponent_piece_position / 8 + destination_square % 8 -
                       opponent_piece_position % 8 > -4 &&
                       destination_square / 8 - opponent_piece_position / 8 + destination_square % 8 -
-                      opponent_piece_position % 8 < 4) || destination_square < 0 ||
-                    destination_square > 63) {
+                      opponent_piece_position % 8 < 4) || destination_square < 0 || destination_square > 63) {
                     continue;
                 }
 
                 // disable castling if opponent sees part of king castling route
-                //short
-                if (castling_rights[2 * current_player] && castling_rights_this_move[0]) {
+                if (destination_square == king_positions[current_player]) {
+                    checking.emplace_back(opponent_piece_position, direction);
+                    castling_rights_this_move[0] = false;
+                    castling_rights_this_move[1] = false;
+                } //short
+                else if (castling_rights[2 - 2 * current_player] && castling_rights_this_move[0]) {
                     if (destination_square <= castling_end_squares[current_player][0] &&
                         destination_square > king_positions[current_player]) {
                         castling_rights_this_move[0] = false;
                     }
                     //long
-                } else if (castling_rights[2 * current_player + 1] && castling_rights_this_move[1]) {
+                } else if (castling_rights[3 - 2 * current_player] && castling_rights_this_move[1]) {
                     if (destination_square >= castling_end_squares[current_player][1] &&
                         destination_square < king_positions[current_player]) {
                         castling_rights_this_move[1] = false;
                     }
-                } else if (destination_square == king_positions[current_player]) {
-                    checking.emplace_back(opponent_piece_position, direction);
-                    castling_rights_this_move[0] = false;
-                    castling_rights_this_move[1] = false;
                 }
                 if (abs(king_positions[current_player] - destination_square) == 1 ||
                     abs(king_positions[current_player] - destination_square) == 7 ||
@@ -289,23 +288,24 @@ game_ends Board::generate_piece_moves() {
                     Piece &destination_piece = board[destination_square];
                     if (!first_piece_found) {
                         // disable castling if opponent sees part of king castling route
-                        // short
-                        if (castling_rights[2 * current_player] && castling_rights_this_move[0]) {
+                        if (destination_square == king_positions[current_player]) {
+                            checking.emplace_back(opponent_piece_position, current_move_direction);
+                            defended_squares.insert(king_positions[current_player] + current_move_direction);
+                            break;
+                        }
+                            // short
+                        else if (castling_rights[2 - 2 * current_player] && castling_rights_this_move[0]) {
                             if (destination_square <= castling_end_squares[current_player][0] &&
                                 destination_square > king_positions[current_player]) {
                                 castling_rights_this_move[0] = false;
                             }
                             //long
-                        } else if (castling_rights[2 * current_player + 1] && castling_rights_this_move[1] &&
+                        } else if (castling_rights[3 - 2 * current_player] && castling_rights_this_move[1] &&
                                    opponent_piece.get_color() != current_player) {
                             if (destination_square >= castling_end_squares[current_player][1] &&
                                 destination_square < king_positions[current_player]) {
                                 castling_rights_this_move[1] = false;
                             }
-                        } else if (destination_square == king_positions[current_player]) {
-                            checking.emplace_back(opponent_piece_position, current_move_direction);
-                            defended_squares.insert(king_positions[current_player] + current_move_direction);
-                            break;
                         }
 
                         if (abs(king_positions[current_player] - destination_square) == 1 ||
@@ -386,7 +386,7 @@ game_ends Board::generate_piece_moves() {
     }
 
 
-    // compute full checking_lines
+// compute full checking_lines
     vector<vector<int>> checking_lines{checking.size()};
     for (int line = 0; line < checking_lines.size(); line++) {
         for (int move = get<0>(checking.at(line));
@@ -395,15 +395,19 @@ game_ends Board::generate_piece_moves() {
         }
     }
 
-    // compute own moves depending on if checked or not
+// compute own moves depending on if checked or not
     int en_passant_pawn_counter = 0;
     int move_index = 0;
     bool piece_is_pinned = false;
-    if (checking_lines.size() > 1) {
+    if (checking_lines.
+
+            size()
+
+        > 1) {
         for (const int &own_piece: own_pieces) {
             board[own_piece].set_amount_moves(0);
         }
-        // only king moves need to be done
+// only king moves need to be done
         int &king_position = king_positions[current_player];
         int move_position = 0;
         Piece &king = board[king_position];
@@ -416,14 +420,15 @@ game_ends Board::generate_piece_moves() {
             }
         }
         king.set_amount_moves(move_position);
-    } else if (!checking_lines.empty()) {
+    } else if (!checking_lines.empty()
+            ) {
         for (int own_piece_position: own_pieces) {
             Piece &own_piece = board[own_piece_position];
             piece_is_pinned = false;
             int pin_index = 0;
             move_index = 0;
 
-            // see if piece is pinned
+// see if piece is pinned
             for (auto pin: pinning) {
                 if (get<2>(pin) == own_piece_position) {
                     piece_is_pinned = true;
@@ -444,87 +449,154 @@ game_ends Board::generate_piece_moves() {
                         move_index++;
                     } else if (own_piece_position / 8 == (current_player ? 1 : 6)) {
                         destination_square += current_player ? 8 : -8;
-                        if (board[destination_square].get_type() == none &&
+                        if (board[destination_square].
+
+                                get_type()
+
+                            == none &&
                             find(checking_lines.at(0).begin(), checking_lines.at(0).end(), destination_square) !=
-                            checking_lines.at(0).end()) {
+                            checking_lines.at(0).
+
+                                    end()
+
+                                ) {
                             own_piece.set_moves(move_index, destination_square);
                             move_index++;
                         }
                     }
                 }
-                // en passant that blockes check not possible in normal game, only if given via fen
-                /*if (en_passant_square != -1 && en_passant_updated_this_move && en_passant_pawn_counter < 2 &&
-                    abs(en_passant_square - own_piece_position + (current_player ? 8 : -8)) == 1 &&
-                    find(checking_lines.at(0).begin(), checking_lines.at(0).end(), en_passant_square) !=
-                    checking_lines.at(0).end()) {
-                    own_piece.set_moves(move_index, en_passant_square);
-                    en_passant_pawn_counter++;
-                    move_index++;
-                }*/
+// en passant that blockes check not possible in normal game, only if given via fen
+/*if (en_passant_square != -1 && en_passant_updated_this_move && en_passant_pawn_counter < 2 &&
+    abs(en_passant_square - own_piece_position + (current_player ? 8 : -8)) == 1 &&
+    find(checking_lines.at(0).begin(), checking_lines.at(0).end(), en_passant_square) !=
+    checking_lines.at(0).end()) {
+    own_piece.set_moves(move_index, en_passant_square);
+    en_passant_pawn_counter++;
+    move_index++;
+}*/
                 own_piece.set_amount_moves(move_index);
-            } else if (own_piece.get_type() == knight) {
+            } else if (own_piece.
+
+                    get_type()
+
+                       == knight) {
                 for (auto direction: knight_moving_directions) {
                     int destination_square = own_piece_position + direction;
-                    // check if move blocks check while preserving L-shape, control of 0 <= move < 64 not necessary,
-                    // can be assumed because of reach of pin line
+// check if move blocks check while preserving L-shape, control of 0 <= move < 64 not necessary,
+// can be assumed because of reach of pin line
                     if ((destination_square / 8 - own_piece_position / 8 + destination_square % 8 -
                          own_piece_position % 8 > -4 &&
                          destination_square / 8 - own_piece_position / 8 + destination_square % 8 -
-                         own_piece_position % 8 < 4) &&
-                        find(checking_lines.at(0).begin(), checking_lines.at(0).end(), destination_square) !=
-                        checking_lines.at(0).end()) {
+                         own_piece_position % 8 < 4) && find(checking_lines.at(0).
+
+                            begin(), checking_lines
+
+                                                                     .at(0).
+
+                            end(), destination_square
+
+                    ) != checking_lines.at(0).
+
+                            end()
+
+                            ) {
                         own_piece.set_moves(move_index, destination_square);
                         move_index++;
                     }
                 }
                 own_piece.set_amount_moves(move_index);
-            } else if (own_piece.get_type() == bishop || own_piece.get_type() == rook ||
-                       own_piece.get_type() == queen) {
+            } else if (own_piece.
+
+                    get_type()
+
+                       == bishop || own_piece.
+
+                    get_type()
+
+                                    == rook || own_piece.
+
+                    get_type()
+
+                                               == queen) {
                 for (int direction_index = 0; direction_index < 8; direction_index++) {
                     const int &move_length = sliding_piece_distances[own_piece.get_type() -
                                                                      3][own_piece_position][direction_index];
                     const int &current_move_direction = sliding_move_directions[direction_index];
                     for (int current_move = 1; current_move <= move_length; current_move++) {
                         int destination_square = own_piece_position + current_move * current_move_direction;
-                        if (find(checking_lines.at(0).begin(), checking_lines.at(0).end(), destination_square) !=
-                            checking_lines.at(0).end()) {
+                        if (find(checking_lines.at(0).
+
+                                begin(), checking_lines
+
+                                         .at(0).
+
+                                end(), destination_square
+
+                        ) != checking_lines.at(0).
+
+                                end()
+
+                                ) {
                             own_piece.set_moves(move_index, destination_square);
                             move_index++;
                             break;
-                        } else if (board[destination_square].get_type() != none) {
+                        } else if (board[destination_square].
+
+                                get_type()
+
+                                   != none) {
                             break;
                         }
                     }
-                    if (move_index == 3) { break; }
+                    if (move_index == 3) {
+                        break;
+                    }
                 }
                 own_piece.set_amount_moves(move_index);
-            } else if (own_piece.get_type() == king) {
+            } else if (own_piece.
+
+                    get_type()
+
+                       == king) {
                 for (auto moving_direction: sliding_move_directions) {
                     int destination_square = own_piece_position + moving_direction;
                     Piece &destination_piece = board[destination_square];
                     if (abs(own_piece_position / 8 - (destination_square) / 8) < 2 &&
-                        abs(own_piece_position % 8 - (destination_square) % 8) < 2 &&
-                        destination_square > -1 && destination_square < 64 &&
-                        (destination_piece.get_type() == none || destination_piece.get_color() != current_player) &&
-                        defended_squares.find(destination_square) == defended_squares.end()) {
+                        abs(own_piece_position % 8 - (destination_square) % 8) < 2 && destination_square > -1 &&
+                        destination_square < 64 && (destination_piece.
+
+                            get_type()
+
+                                                    == none || destination_piece.
+
+                            get_color()
+
+                                                               != current_player) &&
+                        defended_squares.find(destination_square) == defended_squares.
+
+                                end()
+
+                            ) {
                         own_piece.set_moves(move_index, destination_square);
                         move_index++;
                     }
                 }
                 own_piece.set_amount_moves(move_index);
-            } else { throw invalid_argument("received invalid own piece type computing check-case"); }
+            } else {
+                throw invalid_argument("received invalid own piece type computing check-case");
+            }
 
         }
     } else {
 
-        // no check
+// no check
         for (int own_piece_position: own_pieces) {
             Piece &own_piece = board[own_piece_position];
             piece_is_pinned = false;
             int pin_index = 0;
             move_index = 0;
 
-            // see if piece is pinned
+// see if piece is pinned
             for (auto pin: pinning) {
                 if (get<2>(pin) == own_piece_position) {
                     piece_is_pinned = true;
@@ -532,18 +604,24 @@ game_ends Board::generate_piece_moves() {
                 }
                 pin_index++;
             }
-            if (own_piece.get_type() == pawn) {
+            if (own_piece.
+
+                    get_type()
+
+                == pawn) {
                 if (piece_is_pinned) {
                     tuple<int, int, int> &current_pin = pinning.at(pin_index);
                     if (abs(get<1>(current_pin)) == 7 || abs(get<1>(current_pin)) == 9) {
-                        // diagonal pin
+// diagonal pin
 
-                        // normal case
+// normal case
                         bool normal_without_result = true;
                         for (int current_move_direction = 7; current_move_direction < 10; current_move_direction += 2) {
                             int destination_square =
                                     own_piece_position + (current_player ? 1 : -1) * current_move_direction;
-                            if (abs(own_piece_position % 8 - destination_square % 8) != 1) { continue; }
+                            if (abs(own_piece_position % 8 - destination_square % 8) != 1) {
+                                continue;
+                            }
                             if (destination_square == get<0>(current_pin)) {
                                 own_piece.set_moves(move_index, destination_square);
                                 move_index++;
@@ -552,9 +630,9 @@ game_ends Board::generate_piece_moves() {
                             }
                         }
                         if (normal_without_result) {
-                            // try way too complicated en passant case
+// try way too complicated en passant case
 
-                            // compute en passant square if not already done
+// compute en passant square if not already done
                             if (en_passant_square == -1 && !en_passant_updated_this_move) {
                                 en_passant_updated_this_move = true;
                                 stored_move *last = last_move();
@@ -569,7 +647,9 @@ game_ends Board::generate_piece_moves() {
                                      current_move_direction < 10; current_move_direction += 2) {
                                     int destination_square =
                                             own_piece_position + (current_player ? 1 : -1) * current_move_direction;
-                                    if (abs(own_piece_position % 8 - destination_square % 8) != 1) { continue; }
+                                    if (abs(own_piece_position % 8 - destination_square % 8) != 1) {
+                                        continue;
+                                    }
                                     if (destination_square == en_passant_square && en_passant_updated_this_move &&
                                         abs((destination_square - get<0>(current_pin)) / get<1>(current_pin)) <
                                         abs(maximum_pin_distance) &&
@@ -584,21 +664,29 @@ game_ends Board::generate_piece_moves() {
                             }
                         }
                     } else if (abs(get<1>(current_pin)) == 8) {
-                        // straight pin vertical
-                        if (board[own_piece_position + (current_player ? 8 : -8)].get_type() == none) {
+// straight pin vertical
+                        if (board[own_piece_position + (current_player ? 8 : -8)].
+
+                                get_type()
+
+                            == none) {
                             own_piece.set_moves(move_index, own_piece_position + (current_player ? 8 : -8));
                             move_index++;
                             if (own_piece_position / 8 == (current_player ? 1 : 6) &&
-                                board[own_piece_position + (current_player ? 16 : -16)].get_type() == none) {
+                                board[own_piece_position + (current_player ? 16 : -16)].
+
+                                        get_type()
+
+                                == none) {
                                 own_piece.set_moves(move_index, own_piece_position + (current_player ? 16 : -16));
                                 move_index++;
                             }
                         }
                     }
                 } else {
-                    // no normal pin
+// no normal pin
 
-                    // en passant computation
+// en passant computation
                     if (en_passant_square == -1 && !en_passant_updated_this_move) {
                         en_passant_updated_this_move = true;
                         stored_move *last = last_move();
@@ -607,12 +695,23 @@ game_ends Board::generate_piece_moves() {
                         }
                     }
 
-                    // diagonal moves
+// diagonal moves
                     for (int diagonal_move = -1; diagonal_move < 2; diagonal_move += 2) {
                         int destination_square = own_piece_position + (current_player ? 8 : -8) + diagonal_move;
-                        if (abs(own_piece_position % 8 - destination_square % 8) != 1) { continue; }
-                        if (board[destination_square].get_type() != none &&
-                            board[destination_square].get_color() != current_player) {
+                        if ((own_piece_position % 8 - destination_square % 8 != 1 &&
+                             own_piece_position % 8 - destination_square % 8 != -1) || destination_square < 0 ||
+                            destination_square > 63) {
+                            continue;
+                        }
+                        if (board[destination_square].
+
+                                get_type()
+
+                            != none && board[destination_square].
+
+                                get_color()
+
+                                       != current_player) {
                             own_piece.set_moves(move_index, destination_square);
                             move_index++;
                         } else if (destination_square == en_passant_square && en_passant_updated_this_move) {
@@ -629,100 +728,164 @@ game_ends Board::generate_piece_moves() {
                             }
                         }
                     }
-                    // straight moves
-                    if (board[own_piece_position + (current_player ? 8 : -8)].get_type() == none) {
+// straight moves
+                    if (board[own_piece_position + (current_player ? 8 : -8)].
+
+                            get_type()
+
+                        == none) {
                         own_piece.set_moves(move_index, own_piece_position + (current_player ? 8 : -8));
                         move_index++;
                         if (own_piece_position / 8 == (current_player ? 1 : 6) &&
-                            board[own_piece_position + (current_player ? 16 : -16)].get_type() == none) {
+                            board[own_piece_position + (current_player ? 16 : -16)].
+
+                                    get_type()
+
+                            == none) {
                             own_piece.set_moves(move_index, own_piece_position + (current_player ? 16 : -16));
                             move_index++;
                         }
                     }
                 }
                 own_piece.set_amount_moves(move_index);
-            } else if (own_piece.get_type() == knight) {
+            } else if (own_piece.
+
+                    get_type()
+
+                       == knight) {
                 if (piece_is_pinned) {
                     own_piece.set_amount_moves(0);
                     continue;
                 }
                 for (int moving_direction: knight_moving_directions) {
                     int destination_square = own_piece_position + moving_direction;
-                    // move is not within board (not L-shaped)
+// move is not within board (not L-shaped)
                     if (!(destination_square / 8 - own_piece_position / 8 + destination_square % 8 -
                           own_piece_position % 8 > -4 &&
                           destination_square / 8 - own_piece_position / 8 + destination_square % 8 -
-                          own_piece_position % 8 < 4) || destination_square < 0 ||
-                        destination_square > 63) {
+                          own_piece_position % 8 < 4) || destination_square < 0 || destination_square > 63) {
                         continue;
                     }
                     Piece &destination_piece = board[destination_square];
-                    if (destination_piece.get_type() == none || destination_piece.get_color() != current_player) {
+                    if (destination_piece.
+
+                            get_type()
+
+                        == none || destination_piece.
+
+                            get_color()
+
+                                   != current_player) {
                         own_piece.set_moves(move_index, destination_square);
                         move_index++;
                     }
                 }
                 own_piece.set_amount_moves(move_index);
-            } else if (own_piece.get_type() == bishop || own_piece.get_type() == rook ||
-                       own_piece.get_type() == queen) {
+            } else if (own_piece.
 
-                // use positioning of rooks to compute blockage of castling lines
-                // break move_count == 24
-                if (own_piece.get_type() == rook) {
-                    // short
+                    get_type()
+
+                       == bishop || own_piece.
+
+                    get_type()
+
+                                    == rook || own_piece.
+
+                    get_type()
+
+                                               == queen) {
+
+// use positioning of rooks to compute blockage of castling lines
+// break move_count == 24
+                if (own_piece.
+
+                        get_type()
+
+                    == rook) {
+// short
                     int piece_count = 0;
-                    if (castling_rights_this_move[0] && castling_rights[current_player * 2] &&
+                    if (castling_rights_this_move[0] && castling_rights[2 - current_player * 2] &&
                         own_piece_position == original_castling_rook_positions[1 - current_player][0]) {
-                        if (piece_is_pinned) { castling_rights_this_move[0] = false; }
-                        else {
+                        if (piece_is_pinned) {
+                            castling_rights_this_move[0] = false;
+                        } else {
                             for (int square = min(king_positions[current_player],
                                                   castling_end_squares[current_player][2]);
                                  square <= max(own_piece_position, castling_end_squares[current_player][0]); square++) {
-                                if (board[square].get_type() != none) {
+                                if (board[square].
+
+                                        get_type()
+
+                                    != none) {
                                     piece_count++;
-                                    if (piece_count == 3) { break; }
+                                    if (piece_count == 3) {
+                                        break;
+                                    }
                                 }
 
                             }
-                            if (piece_count == 3) { castling_rights_this_move[0] = false; }
+                            if (piece_count == 3) {
+                                castling_rights_this_move[0] = false;
+                            }
                         }
-                    } else if (castling_rights_this_move[1] && castling_rights[current_player * 2 + 1] &&
+                    } else if (castling_rights_this_move[1] && castling_rights[3 - current_player * 2] &&
                                own_piece_position < king_positions[current_player] &&
                                own_piece_position / 8 == king_positions[current_player] / 8) {
-                        if (piece_is_pinned) { castling_rights_this_move[1] = false; }
-                        else {
+                        if (piece_is_pinned) {
+                            castling_rights_this_move[1] = false;
+                        } else {
                             for (int square = max(king_positions[current_player],
                                                   castling_end_squares[current_player][3]);
                                  square >= min(own_piece_position, castling_end_squares[current_player][1]); square--) {
-                                if (board[square].get_type() != none) {
+                                if (board[square].
+
+                                        get_type()
+
+                                    != none) {
                                     piece_count++;
-                                    if (piece_count == 3) { break; }
+                                    if (piece_count == 3) {
+                                        break;
+                                    }
                                 }
                             }
-                            if (piece_count == 3) { castling_rights_this_move[1] = false; }
+                            if (piece_count == 3) {
+                                castling_rights_this_move[1] = false;
+                            }
                         }
                     }
                 }
 
-                // diagonally pinned rooks and straightly pinned bishops never have moves within their pin
-                if (piece_is_pinned && (own_piece.get_type() == rook && (abs(get<1>(pinning.at(pin_index))) == 7 ||
-                                                                         abs(get<1>(pinning.at(pin_index))) == 9) ||
-                                        own_piece.get_type() == bishop && (abs(get<1>(pinning.at(pin_index))) == 1 ||
-                                                                           abs(get<1>(pinning.at(pin_index))) == 8))) {
+// diagonally pinned rooks and straightly pinned bishops never have moves within their pin
+                if (piece_is_pinned && (own_piece.
+
+                        get_type()
+
+                                        == rook && (abs(get<1>(pinning.at(pin_index))) == 7 ||
+                                                    abs(get<1>(pinning.at(pin_index))) == 9) || own_piece.
+
+                        get_type()
+
+                                                                                                == bishop &&
+                                                                                                (abs(get<1>(pinning.at(
+                                                                                                        pin_index))) ==
+                                                                                                 1 || abs(get<1>(
+                                                                                                        pinning.at(
+                                                                                                                pin_index))) ==
+                                                                                                      8))) {
                     own_piece.set_amount_moves(0);
                     continue;
                 }
 
-                // start actual move update cycle
+// start actual move update cycle
                 short int *sliding_lengths = sliding_piece_distances[own_piece.get_type() - 3][own_piece_position];
 
-                // go through every viewing direction
+// go through every viewing direction
 
                 for (int direction = 0; direction < 8; direction++) {
                     const int &move_length = sliding_lengths[direction];
                     const int &current_move_direction = sliding_move_directions[direction];
 
-                    // go through the maximum amount of moves in said direction
+// go through the maximum amount of moves in said direction
                     for (int current_move = 1; current_move <= move_length; current_move++) {
                         int destination_square = own_piece_position + current_move * current_move_direction;
                         Piece &destination_piece = board[destination_square];
@@ -733,16 +896,30 @@ game_ends Board::generate_piece_moves() {
                                 abs((destination_square - get<0>(current_pin)) / get<1>(current_pin)) < max_dist) {
                                 own_piece.set_moves(move_index, destination_square);
                                 move_index++;
-                                if (destination_piece.get_type() != none) {
+                                if (destination_piece.
+
+                                        get_type()
+
+                                    != none) {
                                     break;
                                 }
-                            } else { break; }
+                            } else {
+                                break;
+                            }
                         } else {
-                            if (destination_piece.get_type() == none) {
+                            if (destination_piece.
+
+                                    get_type()
+
+                                == none) {
                                 own_piece.set_moves(move_index, destination_square);
                                 move_index++;
                             } else {
-                                if (destination_piece.get_color() != current_player) {
+                                if (destination_piece.
+
+                                        get_color()
+
+                                    != current_player) {
                                     own_piece.set_moves(move_index, destination_square);
                                     move_index++;
                                 }
@@ -752,61 +929,100 @@ game_ends Board::generate_piece_moves() {
                     }
                 }
                 own_piece.set_amount_moves(move_index);
-            } else if (own_piece.get_type() == king) {
+            } else if (own_piece.
+
+                    get_type()
+
+                       == king) {
                 for (auto moving_direction: sliding_move_directions) {
                     if (abs(own_piece_position / 8 - (own_piece_position + moving_direction) / 8) < 2 &&
                         abs(own_piece_position % 8 - (own_piece_position + moving_direction) % 8) < 2 &&
                         own_piece_position + moving_direction > -1 && own_piece_position + moving_direction < 64 &&
-                        (board[own_piece_position + moving_direction].get_type() == none ||
-                         board[own_piece_position + moving_direction].get_color() != current_player) &&
-                        defended_squares.find(own_piece_position + moving_direction) == defended_squares.end()) {
+                        (board[own_piece_position + moving_direction].
+
+                                get_type()
+
+                         == none || board[own_piece_position + moving_direction].
+
+                                get_color()
+
+                                    != current_player) &&
+                        defended_squares.find(own_piece_position + moving_direction) == defended_squares.
+
+                                end()
+
+                            ) {
                         own_piece.set_moves(move_index, own_piece_position + moving_direction);
                         move_index++;
                     }
                 }
                 own_piece.set_amount_moves(move_index);
 
-            } else { throw invalid_argument("received invalid own piece type computing normal update cycle"); }
+            } else {
+                throw invalid_argument("received invalid own piece type computing normal update cycle");
+            }
         }
-        // add castling
-        if (castling_rights_this_move[0] && castling_rights[current_player * 2]) {
+// add castling
+        if (castling_rights_this_move[0] && castling_rights[2 - current_player * 2]) {
             board[king_positions[current_player]].add_move(king_positions[current_player] + 2);
         }
-        if (castling_rights_this_move[1] && castling_rights[current_player * 2 + 1]) {
+        if (castling_rights_this_move[1] && castling_rights[3 - current_player * 2]) {
             board[king_positions[current_player]].add_move(king_positions[current_player] - 2);
         }
 
     }
-    // deal with game end
-    // threefold
-    if (positions.size() - undo_count > 5) {
+// deal with game end
+// threefold
+    if (positions.
+
+            size()
+
+        - undo_count > 5) {
         int found_position = 1;
         stored_position &compare_to = positions.at(positions.size() - 1 - undo_count);
-        for (int i = 0; i < positions.size() - 1 - undo_count; i++) {
+        for (int i = 0; i < positions.
+
+                size()
+
+                            - 1 - undo_count; i++) {
             stored_position &other = positions.at(i);
             if (compare_to == other) {
                 found_position++;
-                if (found_position == 3) { return threefold; }
+                if (found_position == 3) {
+                    return threefold;
+                }
             }
         }
     }
 
 
-    // checkmates and stalemate
+// checkmates and stalemate
     bool moves = false;
     for (auto piece: own_pieces) {
-        if (board[piece].get_amount_moves() > 0) {
+        if (board[piece].
+
+                get_amount_moves()
+
+            > 0) {
             moves = true;
             break;
         }
     }
-    if (moves) { return not_over; }
-    else if (!checking.empty()) { return current_player ? black_win : white_win; }
-    else { return stalemate; }
+    if (moves) {
+        return not_over;
+    } else if (!checking.
+
+            empty()
+
+            ) {
+        return current_player ? black_win : white_win;
+    } else {
+        return stalemate;
+    }
 
     auto end_time = chrono::high_resolution_clock::now();
     auto time = end_time - time_before;
-    //cout << "Time needed: " << time / std::chrono::nanoseconds(1) << endl;
+//cout << "Time needed: " << time / std::chrono::nanoseconds(1) << endl;
     return not_over;
 }
 
@@ -825,30 +1041,24 @@ bool Board::make_move(int starting_square, int destination_square, int promotion
     }
     if (piece.get_type() == king && abs(starting_square - destination_square) == 2) {
         // find and set rook
-        if (destination_square > starting_square && castling_rights[current_player * 2]) {
-            for (int i = starting_square + 1; i < starting_square / 8 + 8; i++) {
-                if (board[i].get_type() == rook) {
-                    board[i] = Piece();
-                    board[castling_end_squares[current_player][2]] = Piece(current_player, rook);
-                    own_pieces.erase(i);
-                    own_pieces.insert(castling_end_squares[current_player][2]);
-                    old_rook_pos = i;
-                    new_rook_pos = castling_end_squares[current_player][2];
-                    destination_square = castling_end_squares[current_player][0];
-                }
-            }
-        } else if (destination_square < starting_square && castling_rights[current_player * 2 + 1]) {
-            for (int i = starting_square - 1; i > starting_square / 8 - 1; i--) {
-                if (board[i].get_type() == rook) {
-                    board[castling_end_squares[current_player][3]] = board[i];
-                    own_pieces.erase(i);
-                    board[i] = Piece();
-                    own_pieces.insert(castling_end_squares[current_player][3]);
-                    old_rook_pos = i;
-                    new_rook_pos = castling_end_squares[current_player][3];
-                    destination_square = castling_end_squares[current_player][1];
-                }
-            }
+        if (destination_square > starting_square && castling_rights[2 - current_player * 2]) {
+            const int &org_rook_square = original_castling_rook_positions[1 - current_player][0];
+            board[org_rook_square] = Piece();
+            board[castling_end_squares[current_player][2]] = Piece(current_player, rook);
+            own_pieces.erase(org_rook_square);
+            own_pieces.insert(castling_end_squares[current_player][2]);
+            old_rook_pos = org_rook_square;
+            new_rook_pos = castling_end_squares[current_player][2];
+            destination_square = castling_end_squares[current_player][0];
+        } else if (destination_square < starting_square && castling_rights[3 - current_player * 2]) {
+            const int &org_rook_square = original_castling_rook_positions[1 - current_player][1];
+            board[castling_end_squares[current_player][3]] = board[org_rook_square];
+            own_pieces.erase(org_rook_square); // delete rook from own pieces
+            board[org_rook_square] = Piece(); // delete rook from board
+            own_pieces.insert(castling_end_squares[current_player][3]); // insert rook into own pieces
+            old_rook_pos = org_rook_square; // insert rook into board
+            new_rook_pos = castling_end_squares[current_player][3]; // set new position of rook
+            destination_square = castling_end_squares[current_player][1]; // set correct destination square
         } else { return false; }
     }
     if (piece.get_type() == pawn && destination_square == en_passant_square && en_passant_updated_this_move) {
@@ -858,29 +1068,29 @@ bool Board::make_move(int starting_square, int destination_square, int promotion
             stored_move{starting_square, destination_square, piece.get_type(), board[piece_taken_pos].get_type(),
                         piece_taken_pos, en_passant_square,
                         {castling_rights[0], castling_rights[1], castling_rights[2], castling_rights[3]},
-                        fifty_moves_rule_count, old_rook_pos,
-                        new_rook_pos, convert_piece((piece_types) promotion_type)});
+                        fifty_moves_rule_count, old_rook_pos, new_rook_pos,
+                        convert_piece((piece_types) promotion_type)});
 
     // update 50 move rule counter if necessary
     if (board[piece_taken_pos].get_type() != none || piece.get_type() == pawn) { fifty_moves_rule_count = 0; }
 
     // update castling rights
     if (board[starting_square].get_type() == rook) {
-        if (starting_square == original_castling_rook_positions[current_player][0]) {
-            castling_rights[2 * current_player] = false;
-        } else if (starting_square == original_castling_rook_positions[current_player][1]) {
-            castling_rights[2*current_player+1] = false;
+        if (starting_square == original_castling_rook_positions[1 - current_player][0]) {
+            castling_rights[2 - 2 * current_player] = false;
+        } else if (starting_square == original_castling_rook_positions[1 - current_player][1]) {
+            castling_rights[3 - 2 * current_player] = false;
         }
     } else if (board[starting_square].get_type() == king) {
-        castling_rights[current_player * 2] = false;
-        castling_rights[current_player * 2 + 1] = false;
+        castling_rights[2 - current_player * 2] = false;
+        castling_rights[3 - current_player * 2] = false;
         king_positions[current_player] = destination_square;
     }
     if (board[piece_taken_pos].get_type() == rook) {
-        if (piece_taken_pos == original_castling_rook_positions[1-current_player][0]) {
-            castling_rights[2-2*current_player] = false;
-        } else if (piece_taken_pos == original_castling_rook_positions[1-current_player][1]) {
-            castling_rights[3-2*current_player] = false;
+        if (piece_taken_pos == original_castling_rook_positions[1 - current_player][0]) {
+            castling_rights[2 - 2 * current_player] = false;
+        } else if (piece_taken_pos == original_castling_rook_positions[1 - current_player][1]) {
+            castling_rights[3 - 2 * current_player] = false;
         }
     }
 
@@ -900,9 +1110,6 @@ bool Board::make_move(int starting_square, int destination_square, int promotion
     // update own piece vector
     own_pieces.erase(starting_square);
     own_pieces.insert(destination_square);
-
-
-
 
 
     store_current_position();
@@ -1001,6 +1208,7 @@ void Board::draw() {
     char output[64];
     for (char &i: output) i = '#';
     for (int i = 0; i < 64; i++) {
+        convert_piece(board[i]);
         output[(7 - i / 8) * 8 + i % 8] = convert_piece(board[i]);
     }
     for (int i = 0; i < 64; i++) {

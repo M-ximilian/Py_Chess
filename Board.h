@@ -31,6 +31,7 @@ private:
     bool castling_rights[4]{false}; //kqKQ
     int castling_end_squares[2][4] = {{62, 58, 61, 59},
                                       {6,  2,  5,  3}}; // ks, kl, rs, rl (k-king, r-rook, s-short, l-long)
+    int original_castling_rook_positions[2][2] = {{64, -1},{64, -1}}; // KQkq
     int en_passant_square = -1;
     bool en_passant_updated_this_move = false;
     int fifty_moves_rule_count;

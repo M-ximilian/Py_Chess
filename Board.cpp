@@ -83,6 +83,24 @@ Board::Board(string fen_init) {
         }
         i++;
     }
+    // save rooks that could castle and correct castling_squares
+    for (int r = 0; r < 64; r++) {
+        if (board[r].get_type() == rook) {
+            if (r < king_positions[board[r].get_color()]) {
+                if (king_positions[board[r].get_color()] - r < king_positions[board[r].get_color()] - original_castling_rook_positions[1-board[r].get_color()][1]) {
+                    original_castling_rook_positions[1-board[r].get_color()][1] = r;
+                }
+            } else {
+                if (r-king_positions[board[r].get_color()] < original_castling_rook_positions[1-board[r].get_color()][0] - king_positions[board[r].get_color()]) {
+                    original_castling_rook_positions[1-board[r].get_color()][0] = r;
+                }
+            }
+        }
+    }
+    if (original_castling_rook_positions[0][0] == 64) {castling_rights[0] = false;}
+    if (original_castling_rook_positions[0][1] == -1) {castling_rights[1] = false;}
+    if (original_castling_rook_positions[1][0] == 64) {castling_rights[2] = false;}
+    if (original_castling_rook_positions[1][1] == -1) {castling_rights[3] = false;}
     current_player = get<0>(converted_fen);
     en_passant_square = get<1>(converted_fen);
     if (en_passant_square != -1) { en_passant_updated_this_move = true; }

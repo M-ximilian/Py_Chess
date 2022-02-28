@@ -18,7 +18,7 @@ public:
 
     void run();
 
-    void random_games();
+    void random_games(int count);
 
 private:
     Piece board[64];

@@ -997,9 +997,9 @@ void Board::run() {
 
 void Board::random_games(int count) {
     while (true) {
-        draw();
-        cout << count << " " << current_player << " " << move_count << endl << endl;
-        get_pgn();
+        //draw();
+        //cout << count << " " << current_player << " " << move_count << endl << endl;
+        //get_pgn();
         if (generate_piece_moves() != not_over) {
             return;
         }

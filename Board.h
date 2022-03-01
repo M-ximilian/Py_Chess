@@ -12,13 +12,17 @@ class Board {
 public:
     Board(string);
 
-    game_ends generate_piece_moves();
+    game_ends generate_piece_moves(bool perft = false);
 
     void undo();
 
     void run();
 
     void random_games(int count);
+
+    int perft(int depth, map<string, int> * stored);
+
+    bool make_move(int starting_square, int destination_square, int promotion_type);
 
 private:
     Piece board[64];
@@ -56,7 +60,8 @@ private:
         else { return &move_history.at(move_history.size() - undo_count - 1); }
     };
 
-    bool make_move(int starting_square, int destination_square, int promotion_type);
+
+    bool make_move(tuple<int, int, int> squares) {return make_move(get<0>(squares), get<1>(squares), get<2>(squares));}
 
     void store_current_position();
 
@@ -64,6 +69,8 @@ private:
 
 
     void get_pgn();
+
+
 };
 
 

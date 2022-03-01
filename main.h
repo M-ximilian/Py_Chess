@@ -18,6 +18,7 @@
 #include <time.h>
 #include <chrono>
 #include <random>
+#include <map>
 
 using namespace std;
 enum piece_types {

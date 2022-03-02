@@ -25,33 +25,43 @@
     return 0;
 }
 */
+
+
+// no check blocking via double pawn move
+// no check blocking via taken attacker with pawn
+// pawns only block 1 square in front of them
 int main() {
-    // perf 2 fen: r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1, works till perft 3
-    Board b = Board("start");
-    //b.generate_piece_moves();
-    //b.make_move(50, 34, 0);
+    // perft 2 fen: r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1, works
+    // perft 3 fen: 8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1
+    Board b = Board("8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1");
+    b.generate_piece_moves();
+    b.make_move(12, 28, 0);
+    b.draw();
+    b.generate_piece_moves();
+    /*b.make_move(60, 59, 0);
+    b.draw();
+    b.generate_piece_moves();
+    b.make_move(36, 42, 0);
+    b.generate_piece_moves();
+    b.draw();
+    b.generate_piece_moves();*/
+
     map<string, int> storage;
-    cout << b.perft(5, &storage) << endl;
-    string real_counts = "a2a3: 181046\n"
-                         "b2b3: 215255\n"
-                         "c2c3: 222861\n"
-                         "d2d3: 328511\n"
-                         "e2e3: 402988\n"
-                         "f2f3: 178889\n"
-                         "g2g3: 217210\n"
-                         "h2h3: 181044\n"
-                         "a2a4: 217832\n"
-                         "b2b4: 216145\n"
-                         "c2c4: 240082\n"
-                         "d2d4: 361790\n"
-                         "e2e4: 405385\n"
-                         "f2f4: 198473\n"
-                         "g2g4: 214048\n"
-                         "h2h4: 218829\n"
-                         "b1a3: 198572\n"
-                         "b1c3: 234656\n"
-                         "g1f3: 233491\n"
-                         "g1h3: 198502";
+    cout << b.perft(1, &storage) << endl;
+    string real_counts = "e2e3: 15\n"
+                         "g2g3: 4\n"
+                         "a5a6: 15\n"
+                         "e2e4: 16\n"
+                         "g2g4: 17\n"
+                         "b4b1: 16\n"
+                         "b4b2: 16\n"
+                         "b4b3: 15\n"
+                         "b4a4: 15\n"
+                         "b4c4: 15\n"
+                         "b4d4: 15\n"
+                         "b4e4: 15\n"
+                         "b4f4: 2\n"
+                         "a5a4: 15";
     string index, counter;
     bool at_index = true, at_counter = false;
     vector<string> wrong_indices;
@@ -60,7 +70,7 @@ int main() {
         if (real_count == '\n') {
             if (storage[index] != stoi(counter)) {
                 wrong_indices.push_back(index);
-                wrong_counters.push_back(stoi(counter)- storage[index]);
+                wrong_counters.push_back(storage[index]- stoi(counter));
             }
             index.clear(); counter.clear();at_index = true; at_counter = false; continue;
         }
@@ -71,7 +81,7 @@ int main() {
 
     }
     for (int i = 0; i < wrong_indices.size(); i++) {
-        cout << wrong_indices[i] << " " << wrong_counters[i] << endl;
+        //cout << wrong_indices[i] << " " << wrong_counters[i] << endl;
     }
     return 0;
 }

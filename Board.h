@@ -24,6 +24,8 @@ public:
 
     bool make_move(int starting_square, int destination_square, int promotion_type);
 
+    void draw();
+
 private:
     Piece board[64];
 
@@ -65,7 +67,7 @@ private:
 
     void store_current_position();
 
-    void draw();
+
 
 
     void get_pgn();

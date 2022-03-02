@@ -187,7 +187,10 @@ game_ends Board::generate_piece_moves(bool perft) {
     pinning.clear();
     en_passant_pinning.clear(), defended_squares.clear();
     if (!en_passant_from_fen) { en_passant_updated_this_move = false; }
-    else { en_passant_from_fen = false; en_passant_updated_this_move = true;}
+    else {
+        en_passant_from_fen = false;
+        en_passant_updated_this_move = true;
+    }
     int pinned_piece;
 
     bool castling_rights_this_move[2]{true, true};
@@ -212,8 +215,7 @@ game_ends Board::generate_piece_moves(bool perft) {
                     checking.emplace_back(opponent_piece_position, destination_square - opponent_piece_position);
                     castling_rights_this_move[0] = false;
                     castling_rights_this_move[1] = false;
-                }
-                else {
+                } else {
                     // short
                     if (castling_rights[2 - 2 * current_player] && castling_rights_this_move[0]) {
                         if (destination_square <= castling_end_squares[current_player][0] &&
@@ -221,7 +223,8 @@ game_ends Board::generate_piece_moves(bool perft) {
                             castling_rights_this_move[0] = false;
                         }
                         //long
-                    } if (castling_rights[3 - 2 * current_player] && castling_rights_this_move[1]) {
+                    }
+                    if (castling_rights[3 - 2 * current_player] && castling_rights_this_move[1]) {
                         if (destination_square >= castling_end_squares[current_player][1] &&
                             destination_square < king_positions[current_player]) {
                             castling_rights_this_move[1] = false;
@@ -262,7 +265,8 @@ game_ends Board::generate_piece_moves(bool perft) {
                             castling_rights_this_move[0] = false;
                         }
                         //long
-                    } if (castling_rights[3 - 2 * current_player] && castling_rights_this_move[1]) {
+                    }
+                    if (castling_rights[3 - 2 * current_player] && castling_rights_this_move[1]) {
                         if (destination_square >= castling_end_squares[current_player][1] &&
                             destination_square < king_positions[current_player]) {
                             castling_rights_this_move[1] = false;
@@ -310,8 +314,9 @@ game_ends Board::generate_piece_moves(bool perft) {
                                     castling_rights_this_move[0] = false;
                                 }
                                 //long
-                            } if (castling_rights[3 - 2 * current_player] && castling_rights_this_move[1] &&
-                                       opponent_piece.get_color() != current_player) {
+                            }
+                            if (castling_rights[3 - 2 * current_player] && castling_rights_this_move[1] &&
+                                opponent_piece.get_color() != current_player) {
                                 if (destination_square >= castling_end_squares[current_player][1] &&
                                     destination_square < king_positions[current_player]) {
                                     castling_rights_this_move[1] = false;
@@ -449,11 +454,13 @@ game_ends Board::generate_piece_moves(bool perft) {
             }
             if (own_piece.get_type() == pawn) {
                 int destination_square = own_piece_position + (current_player ? 8 : -8);
+                bool forwards_blocking = false;
                 if (board[destination_square].get_type() == none) {
                     if (find(checking_lines.at(0).begin(), checking_lines.at(0).end(), destination_square) !=
                         checking_lines.at(0).end()) {
                         own_piece.set_moves(move_index, destination_square);
                         move_index++;
+                        forwards_blocking = true;
                     } else if (own_piece_position / 8 == (current_player ? 1 : 6)) {
                         destination_square += current_player ? 8 : -8;
                         if (board[destination_square].get_type() == none &&
@@ -461,9 +468,21 @@ game_ends Board::generate_piece_moves(bool perft) {
                             checking_lines.at(0).end()) {
                             own_piece.set_moves(move_index, destination_square);
                             move_index++;
+                            forwards_blocking = true;
+                        }
+                    }
+                } if (!forwards_blocking) {
+                    for (int moving_direction = 7; moving_direction < 10; moving_direction += 2) {
+                        destination_square = own_piece_position + (-1 + 2 * current_player) * moving_direction;
+                        if (destination_square / 8 - own_piece_position / 8 != 1 &&
+                            destination_square / 8 - own_piece_position / 8 != -1) { continue; }
+                        if (destination_square == (checking_lines.at(0)).at(0)) {
+                            own_piece.set_moves(move_index, destination_square);
+                            move_index++;
                         }
                     }
                 }
+
 // en passant that blockes check not possible in normal game, only if given via fen
 /*if (en_passant_square != -1 && en_passant_updated_this_move && en_passant_pawn_counter < 2 &&
     abs(en_passant_square - own_piece_position + (current_player ? 8 : -8)) == 1 &&
@@ -474,7 +493,7 @@ game_ends Board::generate_piece_moves(bool perft) {
     move_index++;
 }*/
                 own_piece.set_amount_moves(move_index);
-            } else if (own_piece.get_type()== knight) {
+            } else if (own_piece.get_type() == knight) {
                 for (auto direction: knight_moving_directions) {
                     int destination_square = own_piece_position + direction;
 // check if move blocks check while preserving L-shape, control of 0 <= move < 64 not necessary,
@@ -578,9 +597,10 @@ game_ends Board::generate_piece_moves(bool perft) {
                                 stored_move *last = last_move();
                                 if (last->piece == pawn && abs(last->previous_square - last->new_square) == 16) {
                                     en_passant_square = last->previous_square + (current_player ? -8 : 8);
-                                } else {en_passant_square = -1;}
+                                } else { en_passant_square = -1; }
                             }
-                            if (en_passant_square != -1 && en_passant_updated_this_move && en_passant_pawn_counter < 2) {
+                            if (en_passant_square != -1 && en_passant_updated_this_move &&
+                                en_passant_pawn_counter < 2) {
                                 int maximum_pin_distance =
                                         (king_positions[current_player] - get<0>(current_pin)) / get<1>(current_pin);
                                 for (int current_move_direction = 7;
@@ -624,7 +644,7 @@ game_ends Board::generate_piece_moves(bool perft) {
                         stored_move *last = last_move();
                         if (last->piece == pawn && abs(last->previous_square - last->new_square) == 16) {
                             en_passant_square = last->previous_square + (current_player ? -8 : 8);
-                        } else {en_passant_square = -1;}
+                        } else { en_passant_square = -1; }
                     }
 
 // diagonal moves
@@ -802,6 +822,7 @@ game_ends Board::generate_piece_moves(bool perft) {
                 own_piece.set_amount_moves(move_index);
 
             } else {
+                draw();
                 throw invalid_argument("received invalid own piece type computing normal update cycle");
             }
         }
@@ -1033,17 +1054,17 @@ void Board::random_games(int count) {
     }
 }
 
-int Board::perft(int depth, map<string, int> * stored){
+int Board::perft(int depth, map<string, int> *stored) {
     int counter = 0;
     int local_amount;
     string local_move;
-    if (depth == 0) {return 1;}
-    if (generate_piece_moves(true) != not_over) {return 0;}
-    vector<tuple<int, int,int>> moves;
-    for (auto piece:(current_player?white_positions:black_positions)) {
+    if (depth == 0) { return 1; }
+    if (generate_piece_moves(true) != not_over) { return 0; }
+    vector<tuple<int, int, int>> moves;
+    for (auto piece: (current_player ? white_positions : black_positions)) {
         for (int move_index = 0; move_index < board[piece].get_amount_moves(); move_index++) {
             int destination_square = board[piece].get_move(move_index);
-            if (board[piece].get_type() == pawn && (destination_square/8 == 7 || destination_square/8 == 0)) {
+            if (board[piece].get_type() == pawn && (destination_square / 8 == 7 || destination_square / 8 == 0)) {
                 for (int i = 1; i < 5; i++) {
                     moves.emplace_back(piece, destination_square, i);
                 }
@@ -1052,13 +1073,14 @@ int Board::perft(int depth, map<string, int> * stored){
             }
         }
     }
-    for (const auto& tested_move:moves) {
+    for (const auto &tested_move: moves) {
         make_move(tested_move);
-        local_amount = perft(depth-1, stored);
+        local_amount = perft(depth - 1, stored);
         counter += local_amount;
-        local_move = string{(char) (get<0>(tested_move)%8+97), (char) (get<0>(tested_move)/8+49), (char) (get<1>(tested_move)%8+97), (char) (get<1>(tested_move)/8+49)};
-        //if (depth == 2) {cout << (char) (get<0>(tested_move)%8+97) << get<0>(tested_move)/8+1 << (char) (get<1>(tested_move)%8+97) << get<1>(tested_move)/8+1 << " " << local_amount << endl;}
-        if (depth == 5) {(*stored)[local_move] = local_amount;}
+        local_move = string{(char) (get<0>(tested_move) % 8 + 97), (char) (get<0>(tested_move) / 8 + 49),
+                            (char) (get<1>(tested_move) % 8 + 97), (char) (get<1>(tested_move) / 8 + 49)};
+        if (depth == 1) {cout << (char) (get<0>(tested_move)%8+97) << get<0>(tested_move)/8+1 << (char) (get<1>(tested_move)%8+97) << get<1>(tested_move)/8+1 << " " << local_amount << endl;}
+        if (depth == 1) { (*stored)[local_move] = local_amount; }
         undo();
     }
     return counter;
@@ -1075,6 +1097,7 @@ void Board::draw() {
         cout << output[i] << " ";
         if (i % 8 == 7) { cout << endl; }
     }
+    cout << endl;
 }
 
 void Board::store_current_position() {

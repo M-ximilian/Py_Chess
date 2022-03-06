@@ -20,7 +20,7 @@ public:
 
     void random_games(int count);
 
-    int perft(int depth, map<string, int> * stored);
+    int perft(int depth, map<string, int> * stored, const tuple<int, int, int>& last_moved = {});
 
     bool make_move(int starting_square, int destination_square, int promotion_type);
 
@@ -39,10 +39,9 @@ private:
                                       {6,  2,  5,  3}}; // ks, kl, rs, rl (k-king, r-rook, s-short, l-long)
     int original_castling_rook_positions[2][2] = {{64, -1},{64, -1}}; // KQkq
     int en_passant_square = -1;
-    bool en_passant_updated_this_move = false;
+    bool en_passant_updated_this_move = true;
     int fifty_moves_rule_count;
     int move_count;
-    bool en_passant_from_fen = true;
     int undo_count = 0;
     vector<stored_move> move_history{};
     vector<stored_position> positions{};
@@ -67,10 +66,9 @@ private:
 
     void store_current_position();
 
-
-
-
     void get_pgn();
+
+    void update_en_passant();
 
 
 };

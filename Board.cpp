@@ -32,16 +32,16 @@ tuple<bool, int, int, int> convert_fen_to_position(string fen, Piece *board, boo
     if (fen[index] != '-') {
         while (fen[index] != ' ') {
             switch (fen[index]) {
-                case 'k':
+                case 'K':
                     castling_rights[0] = true;
                     break;
-                case 'q':
+                case 'Q':
                     castling_rights[1] = true;
                     break;
-                case 'K':
+                case 'k':
                     castling_rights[2] = true;
                     break;
-                case 'Q':
+                case 'q':
                     castling_rights[3] = true;
                     break;
             }
@@ -186,11 +186,6 @@ game_ends Board::generate_piece_moves(bool perft) {
     checking.clear();
     pinning.clear();
     en_passant_pinning.clear(), defended_squares.clear();
-    if (!en_passant_from_fen) { en_passant_updated_this_move = false; }
-    else {
-        en_passant_from_fen = false;
-        en_passant_updated_this_move = true;
-    }
     int pinned_piece;
 
     bool castling_rights_this_move[2]{true, true};
@@ -343,15 +338,16 @@ game_ends Board::generate_piece_moves(bool perft) {
                             // 3) next square is still part of moving direction, 4) next square has opponent pawn
 
                             if (abs(current_move_direction) == 1 && destination_piece.get_type() == pawn &&
-                                opponent_move != move_length && board[opponent_piece_position + (opponent_move + 1) *
-                                                                                                current_move_direction].get_type() ==
-                                                                pawn && board[opponent_piece_position +
-                                                                              (opponent_move + 1) *
-                                                                              current_move_direction].get_color() ==
-                                                                        current_player) {
+                                opponent_move + 1 < move_length && board[opponent_piece_position + (opponent_move + 1) *
+                                                                                                   current_move_direction].get_type() ==
+                                                                   pawn &&
+                                board[opponent_piece_position + (opponent_move + 1) *
+                                                                current_move_direction].get_color() == current_player) {
+
                                 pinned_piece = opponent_piece_position + (opponent_move + 1) * current_move_direction;
                                 first_piece_found = true;
                                 en_passant_pin_exception = true;
+                                opponent_move++;
                             } else {
                                 break;
                             }
@@ -412,7 +408,6 @@ game_ends Board::generate_piece_moves(bool perft) {
     }
 
 // compute own moves depending on if checked or not
-    int en_passant_pawn_counter = 0;
     int move_index = 0;
     bool piece_is_pinned = false;
     if (checking_lines.size() > 1) {
@@ -454,13 +449,11 @@ game_ends Board::generate_piece_moves(bool perft) {
             }
             if (own_piece.get_type() == pawn) {
                 int destination_square = own_piece_position + (current_player ? 8 : -8);
-                bool forwards_blocking = false;
                 if (board[destination_square].get_type() == none) {
                     if (find(checking_lines.at(0).begin(), checking_lines.at(0).end(), destination_square) !=
                         checking_lines.at(0).end()) {
                         own_piece.set_moves(move_index, destination_square);
                         move_index++;
-                        forwards_blocking = true;
                     } else if (own_piece_position / 8 == (current_player ? 1 : 6)) {
                         destination_square += current_player ? 8 : -8;
                         if (board[destination_square].get_type() == none &&
@@ -468,30 +461,24 @@ game_ends Board::generate_piece_moves(bool perft) {
                             checking_lines.at(0).end()) {
                             own_piece.set_moves(move_index, destination_square);
                             move_index++;
-                            forwards_blocking = true;
-                        }
-                    }
-                } if (!forwards_blocking) {
-                    for (int moving_direction = 7; moving_direction < 10; moving_direction += 2) {
-                        destination_square = own_piece_position + (-1 + 2 * current_player) * moving_direction;
-                        if (destination_square / 8 - own_piece_position / 8 != 1 &&
-                            destination_square / 8 - own_piece_position / 8 != -1) { continue; }
-                        if (destination_square == (checking_lines.at(0)).at(0)) {
-                            own_piece.set_moves(move_index, destination_square);
-                            move_index++;
                         }
                     }
                 }
-
-// en passant that blockes check not possible in normal game, only if given via fen
-/*if (en_passant_square != -1 && en_passant_updated_this_move && en_passant_pawn_counter < 2 &&
-    abs(en_passant_square - own_piece_position + (current_player ? 8 : -8)) == 1 &&
-    find(checking_lines.at(0).begin(), checking_lines.at(0).end(), en_passant_square) !=
-    checking_lines.at(0).end()) {
-    own_piece.set_moves(move_index, en_passant_square);
-    en_passant_pawn_counter++;
-    move_index++;
-}*/
+                // possibility of taking attacking piece
+                update_en_passant();
+                for (int moving_direction = 7; moving_direction < 10; moving_direction += 2) {
+                    destination_square = own_piece_position + (-1 + 2 * current_player) * moving_direction;
+                    if (destination_square / 8 - own_piece_position / 8 != 1 &&
+                        destination_square / 8 - own_piece_position / 8 != -1) { continue; }
+                    if (destination_square == (checking_lines.at(0)).at(0)) {
+                        own_piece.set_moves(move_index, destination_square);
+                        move_index++;
+                    } else if (en_passant_updated_this_move && destination_square == en_passant_square &&
+                               (checking_lines.at(0)).at(0) == en_passant_square + (current_player ? -8 : 8)) {
+                        own_piece.set_moves(move_index, destination_square);
+                        move_index++;
+                    }
+                }
                 own_piece.set_amount_moves(move_index);
             } else if (own_piece.get_type() == knight) {
                 for (auto direction: knight_moving_directions) {
@@ -592,17 +579,8 @@ game_ends Board::generate_piece_moves(bool perft) {
 // try way too complicated en passant case
 
 // compute en passant square if not already done
-                            if (!en_passant_updated_this_move) {
-                                en_passant_updated_this_move = true;
-                                stored_move *last = last_move();
-                                if (last->piece == pawn && abs(last->previous_square - last->new_square) == 16) {
-                                    en_passant_square = last->previous_square + (current_player ? -8 : 8);
-                                } else { en_passant_square = -1; }
-                            }
-                            if (en_passant_square != -1 && en_passant_updated_this_move &&
-                                en_passant_pawn_counter < 2) {
-                                int maximum_pin_distance =
-                                        (king_positions[current_player] - get<0>(current_pin)) / get<1>(current_pin);
+                            update_en_passant();
+                            if (en_passant_square != -1 && en_passant_updated_this_move) {
                                 for (int current_move_direction = 7;
                                      current_move_direction < 10; current_move_direction += 2) {
                                     int destination_square =
@@ -610,14 +588,9 @@ game_ends Board::generate_piece_moves(bool perft) {
                                     if (abs(own_piece_position % 8 - destination_square % 8) != 1) {
                                         continue;
                                     }
-                                    if (destination_square == en_passant_square && en_passant_updated_this_move &&
-                                        abs((destination_square - get<0>(current_pin)) / get<1>(current_pin)) <
-                                        abs(maximum_pin_distance) &&
-                                        (destination_square - get<0>(current_pin)) * maximum_pin_distance *
-                                        get<1>(current_pin) > 0) {
-                                        own_piece.set_moves(move_index, destination_square);
+                                    if (destination_square == en_passant_square &&
+                                        (abs(get<1>(current_pin)) == current_move_direction)) {
                                         move_index++;
-                                        en_passant_pawn_counter++;
                                         break;
                                     }
                                 }
@@ -639,13 +612,7 @@ game_ends Board::generate_piece_moves(bool perft) {
 // no normal pin
 
 // en passant computation
-                    if (!en_passant_updated_this_move) {
-                        en_passant_updated_this_move = true;
-                        stored_move *last = last_move();
-                        if (last->piece == pawn && abs(last->previous_square - last->new_square) == 16) {
-                            en_passant_square = last->previous_square + (current_player ? -8 : 8);
-                        } else { en_passant_square = -1; }
-                    }
+                    update_en_passant();
 
 // diagonal moves
                     for (int diagonal_move = -1; diagonal_move < 2; diagonal_move += 2) {
@@ -782,8 +749,14 @@ game_ends Board::generate_piece_moves(bool perft) {
                         if (piece_is_pinned) {
                             auto &current_pin = pinning.at(pin_index);
                             int max_dist = (king_positions[current_player] - get<0>(current_pin)) / get<1>(current_pin);
-                            if (destination_square % get<1>(current_pin) == get<0>(current_pin) % get<1>(current_pin) &&
-                                abs((destination_square - get<0>(current_pin)) / get<1>(current_pin)) < max_dist) {
+                            if ((destination_square - get<0>(current_pin)) % get<1>(current_pin) == 0 &&
+                                (get<1>(current_pin) < 0 ? destination_square - get<0>(current_pin) :
+                                 -destination_square + get<0>(current_pin)) / get<1>(current_pin) < max_dist &&
+                                ((get<1>(current_pin) < 0 && destination_square <= get<0>(current_pin) &&
+                                  destination_square > king_positions[current_player]) ||
+                                 (get<1>(current_pin) > 0 && destination_square >= get<0>(current_pin) &&
+                                  destination_square < king_positions[current_player]))) {
+
                                 own_piece.set_moves(move_index, destination_square);
                                 move_index++;
                                 if (destination_piece.get_type() != none) {
@@ -966,6 +939,7 @@ bool Board::make_move(int starting_square, int destination_square, int promotion
     current_player = !current_player;
     move_count++;
     fifty_moves_rule_count++;
+    en_passant_updated_this_move = false;
     return true;
 }
 
@@ -979,6 +953,7 @@ void Board::undo() {
     current_player = !current_player;
     fifty_moves_rule_count = last_played_move->move_rule_count;
     en_passant_square = last_played_move->en_passant_square;
+    en_passant_updated_this_move = true;
     for (int i = 0; i < 4; i++) {
         castling_rights[i] = last_played_move->castling_rights[i];
     }
@@ -1054,18 +1029,20 @@ void Board::random_games(int count) {
     }
 }
 
-int Board::perft(int depth, map<string, int> *stored) {
+int Board::perft(int depth, map<string, int> *stored, const tuple<int, int, int> &last_moved) {
     int counter = 0;
     int local_amount;
     string local_move;
-    if (depth == 0) { return 1; }
+    if (depth == 0) {
+        return 1;
+    }
     if (generate_piece_moves(true) != not_over) { return 0; }
     vector<tuple<int, int, int>> moves;
     for (auto piece: (current_player ? white_positions : black_positions)) {
         for (int move_index = 0; move_index < board[piece].get_amount_moves(); move_index++) {
             int destination_square = board[piece].get_move(move_index);
             if (board[piece].get_type() == pawn && (destination_square / 8 == 7 || destination_square / 8 == 0)) {
-                for (int i = 1; i < 5; i++) {
+                for (int i = 2; i < 6; i++) {
                     moves.emplace_back(piece, destination_square, i);
                 }
             } else {
@@ -1074,13 +1051,30 @@ int Board::perft(int depth, map<string, int> *stored) {
         }
     }
     for (const auto &tested_move: moves) {
+
         make_move(tested_move);
+        //cout << depth << " " << get<0>(tested_move) << " " << get<1>(tested_move) << " " << get<2>(tested_move) << endl;
         local_amount = perft(depth - 1, stored);
         counter += local_amount;
         local_move = string{(char) (get<0>(tested_move) % 8 + 97), (char) (get<0>(tested_move) / 8 + 49),
                             (char) (get<1>(tested_move) % 8 + 97), (char) (get<1>(tested_move) / 8 + 49)};
-        if (depth == 1) {cout << (char) (get<0>(tested_move)%8+97) << get<0>(tested_move)/8+1 << (char) (get<1>(tested_move)%8+97) << get<1>(tested_move)/8+1 << " " << local_amount << endl;}
-        if (depth == 1) { (*stored)[local_move] = local_amount; }
+        switch (get<2>(tested_move)) {
+            case 2:
+                local_move.push_back('n');
+                break;
+            case 3:
+                local_move.push_back('b');
+                break;
+            case 4:
+                local_move.push_back('r');
+                break;
+            case 5:
+                local_move.push_back('q');
+                break;
+        }
+        //if (depth == 2) {cout << (char) (get<0>(tested_move) % 8 + 97) << get<0>(tested_move) / 8 + 1<< (char) (get<1>(tested_move) % 8 + 97) << get<1>(tested_move) / 8 + 1 << " " << local_amount << endl;}
+        if (depth == 5) { (*stored)[local_move] = local_amount; }
+        //cout << "undo " << depth  << " " << get<0>(tested_move) << " " << get<1>(tested_move) << " " << get<2>(tested_move) << endl;
         undo();
     }
     return counter;
@@ -1136,4 +1130,14 @@ void Board::get_pgn() {
         pgn.push_back(' ');
     }
     cout << pgn << endl;
+}
+
+void Board::update_en_passant() {
+    if (!en_passant_updated_this_move) {
+        en_passant_updated_this_move = true;
+        stored_move *last = last_move();
+        if (last->piece == pawn && abs(last->previous_square - last->new_square) == 16) {
+            en_passant_square = last->previous_square + (current_player ? -8 : 8);
+        } else { en_passant_square = -1; }
+    }
 }

@@ -118,7 +118,6 @@ Board::Board(string fen_init) {
 }
 
 game_ends Board::generate_piece_moves(bool perft) {
-    auto time_before = chrono::high_resolution_clock::now();
     // compute available pre update game end szenarios
     if (!perft) {
         if (fifty_moves_rule_count > 99) { return fifty_move_rule; }
@@ -411,6 +410,7 @@ game_ends Board::generate_piece_moves(bool perft) {
     int move_index = 0;
     bool piece_is_pinned = false;
     if (checking_lines.size() > 1) {
+        // doublecheck
         for (const int &own_piece: own_pieces) {
             board[own_piece].set_amount_moves(0);
         }
@@ -429,6 +429,7 @@ game_ends Board::generate_piece_moves(bool perft) {
         }
         king.set_amount_moves(move_position);
     } else if (!checking_lines.empty()) {
+        // check
         for (int own_piece_position: own_pieces) {
             Piece &own_piece = board[own_piece_position];
             piece_is_pinned = false;
@@ -468,8 +469,8 @@ game_ends Board::generate_piece_moves(bool perft) {
                 update_en_passant();
                 for (int moving_direction = 7; moving_direction < 10; moving_direction += 2) {
                     destination_square = own_piece_position + (-1 + 2 * current_player) * moving_direction;
-                    if (destination_square / 8 - own_piece_position / 8 != 1 &&
-                        destination_square / 8 - own_piece_position / 8 != -1) { continue; }
+                    if ((destination_square / 8 - own_piece_position / 8 != 1 &&
+                        destination_square / 8 - own_piece_position / 8 != -1) || destination_square < 0) { continue; }
                     if (destination_square == (checking_lines.at(0)).at(0)) {
                         own_piece.set_moves(move_index, destination_square);
                         move_index++;
@@ -590,6 +591,7 @@ game_ends Board::generate_piece_moves(bool perft) {
                                     }
                                     if (destination_square == en_passant_square &&
                                         (abs(get<1>(current_pin)) == current_move_direction)) {
+                                        own_piece.set_moves(move_index, en_passant_square);
                                         move_index++;
                                         break;
                                     }
@@ -814,7 +816,7 @@ game_ends Board::generate_piece_moves(bool perft) {
     if (!perft && positions.size() - undo_count > 5) {
         int found_position = 1;
         stored_position &compare_to = positions.at(positions.size() - 1 - undo_count);
-        for (int i = 0; i < positions.size() - 1 - undo_count; i++) {
+        for (int i = max(0,(int) positions.size()-1-fifty_moves_rule_count); i < positions.size() - 1 - undo_count; i++) {
             stored_position &other = positions.at(i);
             if (compare_to == other) {
                 found_position++;
@@ -841,10 +843,6 @@ game_ends Board::generate_piece_moves(bool perft) {
     } else {
         return stalemate;
     }
-
-    auto end_time = chrono::high_resolution_clock::now();
-    auto time = end_time - time_before;
-//cout << "Time needed: " << time / std::chrono::nanoseconds(1) << endl;
     return not_over;
 }
 
@@ -1002,13 +1000,13 @@ void Board::run() {
     }
 }
 
-void Board::random_games(int count) {
+int Board::random_games(int count) {
     while (true) {
         //draw();
         //cout << count << " " << current_player << " " << move_count << endl << endl;
         //get_pgn();
         if (generate_piece_moves() != not_over) {
-            return;
+            return move_count;
         }
         unordered_set<int> &own_pieces = current_player ? white_positions : black_positions;
         while (true) {

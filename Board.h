@@ -18,7 +18,7 @@ public:
 
     void run();
 
-    void random_games(int count);
+    int random_games(int count);
 
     int perft(int depth, map<string, int> * stored, const tuple<int, int, int>& last_moved = {});
 

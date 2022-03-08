@@ -1,25 +1,25 @@
-#include "Board.h"
+#include "Minmax.h"
 
 int main() {
     int used_seed = (int) time(nullptr);
     cout << used_seed << endl;
-    srand(1646659143);
-    std::cout << "Hello, World!" << std::endl;
+    srand(used_seed);
     auto time_before = chrono::high_resolution_clock::now();
+    long long before = 0;
     long long time_spent = 0;
     int move_counter = 0;
 
     for (int i = 0; i < 10000000; i++) {
         //n2nn2n/8/8/n3n2n/n6n/8/8/n2nn2n w - - 0 1
         Board b = Board("start"); //break i == 5
-        auto before = time(nullptr);
+        before = time(nullptr);
         move_counter += b.random_games(i);
         time_spent += time(nullptr)-before;
 
         //cout << "done" << endl;
         if (i % 5000 == 0) {
             cout << i << " Games in " << time_spent << " Sek, " << i/(max(time_spent, (long long) 1)) << " Games per Sek," << endl;
-            cout << move_counter << " Moves in " << time_spent << " Sek, " << move_counter/(max(time_spent, (long long) 1)) << " Moves per Sek" << endl;
+            cout << move_counter << " Moves in " << time_spent << " Sek, " << move_counter/(max(time_spent, (long long) 1)) << " Moves per Sek" << endl << endl;
         }
     }
     auto end_time = chrono::high_resolution_clock::now();

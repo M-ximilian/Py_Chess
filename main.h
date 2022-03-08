@@ -15,10 +15,10 @@
 #include <string>
 #include <utility>
 #include <ctime>
-#include <time.h>
 #include <chrono>
 #include <random>
 #include <map>
+#include <limits>
 
 using namespace std;
 enum piece_types {

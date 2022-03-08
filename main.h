@@ -46,4 +46,5 @@ public:
         return position == other.position && en_passant_square == other.en_passant_square && castles == other.castles;
     }
 };
+
 #endif //PY_CHESS_MAIN_H

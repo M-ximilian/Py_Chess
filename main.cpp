@@ -12,19 +12,33 @@ int main() {
     for (int i = 0; i < 10000000; i++) {
         //n2nn2n/8/8/n3n2n/n6n/8/8/n2nn2n w - - 0 1
         Board b = Board("start"); //break i == 5
-        before = time(nullptr);
-        move_counter += b.random_games(i);
-        time_spent += time(nullptr)-before;
+        Minmax m = Minmax(&b);
+        while (true) {
+            b.draw();
+            if (b.generate_piece_moves() != not_over) {
+                cout << "over" << endl;
+                break;
+            }
+            string usermove;
+            cin >> usermove;
+            cout << "move " << (tolower(usermove[0]) - 97) + 8 * (usermove[1] - 49) << " to "
+                 << (tolower(usermove[2]) - 97) + 8 * (usermove[3] - 49) << " pro "
+                 << (usermove.size() == 5 ? convert_piece(tolower(usermove[4])) : 0) << endl;
+            b.make_move((tolower(usermove[0]) - 97) + 8 * (usermove[1] - 49),
+                      (tolower(usermove[2]) - 97) + 8 * (usermove[3] - 49),
+                      usermove.size() == 5 ? convert_piece(tolower(usermove[4])) : 0);
 
-        //cout << "done" << endl;
-        if (i % 5000 == 0) {
-            cout << i << " Games in " << time_spent << " Sek, " << i/(max(time_spent, (long long) 1)) << " Games per Sek," << endl;
-            cout << move_counter << " Moves in " << time_spent << " Sek, " << move_counter/(max(time_spent, (long long) 1)) << " Moves per Sek" << endl << endl;
+            b.draw();
+            if (b.generate_piece_moves() != not_over) {
+                cout << "also over" << endl;
+                break;
+            }
+            b.make_move(m.get_move(true, 5));
         }
-    }
-    auto end_time = chrono::high_resolution_clock::now();
-    auto time = end_time - time_before;
-    cout << "Time needed: " << time / std::chrono::milliseconds(1) << endl;
+
+
+
+        }
     return 0;
 }
 

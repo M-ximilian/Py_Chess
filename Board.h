@@ -22,18 +22,23 @@ public:
 
     int perft(int depth, map<string, int> * stored, const tuple<int, int, int>& last_moved = {});
 
+    bool make_move(tuple<int, int, int> squares) {return make_move(get<0>(squares), get<1>(squares), get<2>(squares));}
+
     bool make_move(int starting_square, int destination_square, int promotion_type);
 
     void draw();
 
-private:
+
     Piece board[64];
 
     unordered_set<int> white_positions;
     unordered_set<int> black_positions;
+    bool current_player;
+
+private:
+
 
     int king_positions[2]{};
-    bool current_player;
     bool castling_rights[4]{false}; //kqKQ
     int castling_end_squares[2][4] = {{62, 58, 61, 59},
                                       {6,  2,  5,  3}}; // ks, kl, rs, rl (k-king, r-rook, s-short, l-long)
@@ -62,7 +67,7 @@ private:
     };
 
 
-    bool make_move(tuple<int, int, int> squares) {return make_move(get<0>(squares), get<1>(squares), get<2>(squares));}
+
 
     void store_current_position();
 

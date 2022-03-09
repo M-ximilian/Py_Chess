@@ -12,6 +12,7 @@ Minmax::Minmax(Board *g) {
 float Minmax::minmax(int storage_position, int depth, int current_depth, float alpha, float beta) {
     if (current_depth == 0) {
         node_count++;
+        if (node_count % 10000 == 0) {cout << node_count << " nodes rn" << endl;}
         return eval();
     } else if (current_depth == -1) {
         current_depth = depth;
@@ -111,7 +112,9 @@ float Minmax::minmax(int storage_position, int depth, int current_depth, float a
             // adding best moves stuff
             if (eval < min_score) {
                 min_score = eval;
-                if (current_depth == depth) {best_moves_per_iteration[storage_position] = {current_move};}
+                if (current_depth == depth) {
+                    best_moves_per_iteration[storage_position] = {current_move};
+                }
             } else if (eval == min_score && current_depth == depth) {
                 best_moves_per_iteration[storage_position].push_back(current_move);
             }
@@ -143,6 +146,9 @@ tuple<int, int, int> Minmax::get_move(bool use_depth, int depth_or_time) {
         best_moves_per_iteration.emplace_back();
         //game->generate_piece_moves();
         minmax(0, depth_or_time);
+        for (auto&bestmove:best_moves_per_iteration[0]) {
+            cout << get<0>(bestmove) << " " << get<1>(bestmove) << endl;
+        }
         cout << node_count << " nodes this move" << endl;
         return best_moves_per_iteration[0].at(rand()%best_moves_per_iteration[0].size());
     }

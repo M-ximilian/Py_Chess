@@ -3,11 +3,7 @@
 int main() {
     int used_seed = (int) time(nullptr);
     cout << used_seed << endl;
-    srand(used_seed);
-    auto time_before = chrono::high_resolution_clock::now();
-    long long before = 0;
-    long long time_spent = 0;
-    int move_counter = 0;
+    srand(1646816751);
 
     for (int i = 0; i < 10000000; i++) {
         //n2nn2n/8/8/n3n2n/n6n/8/8/n2nn2n w - - 0 1
@@ -33,7 +29,11 @@ int main() {
                 cout << "also over" << endl;
                 break;
             }
+            auto time_before = chrono::high_resolution_clock::now();
             b.make_move(m.get_move(true, 5));
+            auto time_after = chrono::high_resolution_clock::now();
+            auto delta_time = time_after-time_before;
+            cout << "Total Time: " << delta_time/chrono::milliseconds(1) << endl;
         }
 
 

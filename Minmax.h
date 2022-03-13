@@ -20,9 +20,9 @@ private:
 
     float minmax(int storage_position, int depth, int current_depth = -1, float alpha = -numeric_limits<float>::infinity(), float beta = numeric_limits<float>::infinity());
 
-    void order_moves();
+    vector<tuple<int, int, int>> order_moves();
 
-    void sort_moves();
+    static vector<tuple<int, int, int>> sort_moves(vector<tuple<int, int, int>> & moves, vector<float> &scores);
 
     void time_search(int max_time);
 

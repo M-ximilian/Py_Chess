@@ -36,7 +36,7 @@ int main() {
                 break;
             }
             auto time_before = chrono::high_resolution_clock::now();
-            b.make_move(m.get_move(true, 5));
+            b.make_move(m.get_move(true, 6));
             auto time_after = chrono::high_resolution_clock::now();
             auto delta_time = time_after-time_before;
             cout << "Total Time: " << delta_time/chrono::milliseconds(1) << endl;

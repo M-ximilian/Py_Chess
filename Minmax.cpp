@@ -31,22 +31,8 @@ float Minmax::minmax(int storage_position, int depth, int current_depth, float a
         current_depth = depth;
     }
     // eventual move_sorting here
-    vector<tuple<int, int, int>> moves;
-    for (int i: (game->current_player ? game->white_positions : game->black_positions)) {
-        for (int dest_i = 0; dest_i < game->board[i].get_amount_moves(); dest_i++) {
-            int dest = game->board[i].get_move(dest_i);
-            if (game->board[i].get_type() == pawn && (dest / 8 == 0 || dest / 8 == 7)) {
-                // promotions
-                for (int prom = 2; prom < 6; prom++) {
-                    moves.emplace_back(i, dest, prom);
-                }
-            } else {
-                // normal moves
-                moves.emplace_back(i, dest, 0);
-            }
-        }
-    }
-    // end of eventuality
+    vector<tuple<int, int, int>> moves = order_moves();
+
 
     float max_score = -10000000;
     float min_score = 10000000;
@@ -167,11 +153,83 @@ tuple<int, int, int> Minmax::get_move(bool use_depth, int depth_or_time) {
         //game->generate_piece_moves();
         float eval = minmax(0, depth_or_time);
         for (auto &bestmove: best_moves_per_iteration[0]) {
-            cout << get<0>(bestmove) << " " << get<1>(bestmove) << endl;
+            //cout << get<0>(bestmove) << " " << get<1>(bestmove) << endl;
         }
         cout << node_count << " nodes this move " << eval << endl;
         return best_moves_per_iteration[0].at(rand() % best_moves_per_iteration[0].size());
     } else {
         return {};
     };
+}
+
+vector<tuple<int, int, int>> Minmax::order_moves() {
+    vector<tuple<int, int, int>> ordered_moves;
+    vector<float> scores;
+    bool &color = game->current_player;
+    for (int i:(game->current_player?game->white_positions:game->black_positions)) {
+        Piece &piece = game->board[i];
+        for (int move_index = 0; move_index < piece.get_amount_moves(); move_index++) {
+
+            if (piece.get_type() == pawn && (piece.get_move(move_index)/8 == 7 || piece.get_move(move_index)/8 == 0)) {
+                for (int promotion = 2; promotion < 6; promotion++) {
+                    ordered_moves.emplace_back(i, piece.get_move(move_index), promotion);
+                    if (game->board[piece.get_move(move_index)].get_type() != none) {
+                        if (color) {
+                            scores.push_back(piece_values[promotion-1] - piece_values[0] + piece_values[game->board[piece.get_move(move_index)].get_type()-1]);
+                        } else {
+                            scores.push_back(-piece_values[promotion-1] + piece_values[0] - piece_values[game->board[piece.get_move(move_index)].get_type()-1]);
+                        }
+                    } else {
+                        if (color) {
+                            scores.push_back(piece_values[promotion-1]-piece_values[0]);
+                        } else {
+                            scores.push_back(-piece_values[promotion-1]+piece_values[0]);
+                        }
+                    }
+                }
+
+            } else {
+                ordered_moves.emplace_back(i, piece.get_move(move_index), 0);
+                int destination = piece.get_move(move_index);
+                if (game->board[destination].get_type() != none) {
+                    if (color) {
+                        scores.push_back(piece_values[game->board[destination].get_type()-1]-piece_values[piece.get_type()-1]);
+                    } else {
+                        scores.push_back(piece_values[-game->board[destination].get_type()-1]+piece_values[piece.get_type()-1]);
+                    }
+                } else if (piece.get_color() && destination/8 != 7 && ((destination%8!=0 && game->board[destination+7].get_type() == pawn && !game->board[destination+7].get_color()) || destination%8!=7 && game->board[destination+9].get_type() == pawn && !game->board[destination+9].get_color())) {
+                    //expecting to lose the piece without compensation
+                    if (color) {
+                        scores.push_back(-piece_values[game->board[destination].get_type()-1]);
+                    } else {
+                        scores.push_back(piece_values[game->board[destination].get_type()-1]);
+                    }
+                } else if (!piece.get_color() && destination/8 != 0 && ((destination%8!=7 && game->board[destination-7].get_type() == pawn && game->board[destination-7].get_color()) || destination%8!=0 && game->board[destination-9].get_type() == pawn && game->board[destination-9].get_color())) {
+                    //expecting to lose the piece without compensation
+                    if (color) {
+                        scores.push_back(-piece_values[game->board[destination].get_type()-1]);
+                    } else {
+                        scores.push_back(piece_values[game->board[destination].get_type()-1]);
+                    }
+                } else {
+                    scores.push_back(0);
+                }
+            }
+        }
+    }
+    return sort_moves(ordered_moves, scores);
+}
+
+vector<tuple<int, int, int>> Minmax::sort_moves(vector<tuple<int, int, int>> &moves, vector<float> &scores) {
+    int swap;
+    for (int i = 0; i < moves.size()-1;i++) {
+        for (int j = i + 1; j > 0; j--) {
+            swap = j-1;
+            if (scores.at(swap) < scores.at(j)) {
+                iter_swap(moves.begin()+j, moves.begin()+swap);
+                iter_swap(scores.begin()+j, scores.begin()+swap);
+            }
+        }
+    }
+    return moves;
 }

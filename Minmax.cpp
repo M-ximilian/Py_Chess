@@ -3,7 +3,20 @@
 //
 
 #include "Minmax.h"
+
 float piece_values[6] = {10, 30, 32, 50, 90, 0};
+static const float eval_positions[12][64] = {{0,  0,  0,  0,    0,    0,  0,  0,  -5,   -5,  -5, -5,  -5,  -5, -5,  -5,   -1,   -1,   -2,   -3,   -3,   -2,   -1,   -1,   -0.5, -0.5, -1,   -2.5, -2.5, -1,   -0.5, -0.5, 0,    0,   0,    -2,   -2,   0,    0,   0,    -0.5, 0.5,  1,   0,    0,    1,   0.5,  -0.5, -0.5, -1,   -1, 2,    2,    -1, -1,   -0.5, 0,  0,  0,  0,    0,    0,  0,  0}, // p
+                                             {5,  4,  3,  3,    3,    3,  4,  5,  4,    2,   0,  0,   0,   0,  2,   4,    3,    0,    -1,   -1.5, -1.5, -1,   0,    3,    3,    -0.5, -1.5, -2,   -2,   -1.5, -0.5, 3,    3,    0,   -1.5, -2,   -2,   -1.5, 0,   3,    3,    -0.5, -1,  -1.5, -1.5, -1,  -0.5, 3,    4,    2,    0,  -0.5, -0.5, 0,  2,    4,    5,  4,  3,  3,    3,    3,  4,  5}, // n
+                                             {2,  1,  1,  1,    1,    1,  1,  2,  1,    0,   0,  0,   0,   0,  0,   1,    1,    0,    -0.5, -1,   -1,   -0.5, 0,    1,    1,    -0.5, -0.5, -1,   -1,   -0.5, -0.5, 1,    1,    0,   -1,   -1,   -1,   -1,   0,   1,    1,    -1,   -1,  -1,   -1,   -1,  -1,   1,    1,    -0.5, 0,  0,    0,    0,  -0.5, 1,    2,  1,  1,  1,    1,    1,  1,  2}, // b
+                                             {0,  0,  0,  0,    0,    0,  0,  0,  -0.5, -1,  -1, -1,  -1,  -1, -1,  -0.5, 0.5,  0,    0,    0,    0,    0,    0,    0.5,  0.5,  0,    0,    0,    0,    0,    0,    0.5,  0.5,  0,   0,    0,    0,    0,    0,   0.5,  0.5,  0,    0,   0,    0,    0,   0,    0.5,  0.5,  0,    0,  0,    0,    0,  0,    0.5,  0,  0,  0,  -0.5, -0.5, 0,  0,  0}, // r
+                                             {2,  1,  1,  0.5,  0.5,  1,  1,  2,  1,    0,   0,  0,   0,   0,  0,   1,    1,    0,    -0.5, -0.5, -0.5, -0.5, 0,    1,    0,    0,    -0.5, -0.5, -0.5, -0.5, 0,    0,    0,    0,   -0.5, -0.5, -0.5, -0.5, 0,   0,    1,    0,    0,   -0.5, -0.5, 0,   0,    1,    1,    0,    0,  0,    0,    0,  0,    1,    2,  1,  1,  0.5,  0.5,  1,  1,  2}, // q
+                                             {3,  4,  4,  5,    5,    4,  4,  3,  3,    4,   4,  5,   5,   4,  4,   3,    3,    4,    4,    5,    5,    4,    4,    3,    3,    4,    4,    5,    5,    4,    4,    3,    2,    3,   3,    4,    4,    3,    3,   2,    1,    2,    2,   2,    2,    2,   2,    1,    -2,   -2,   0,  0,    0,    0,  -2,   -2,   -2, -3, -1, 0,    0,    -1, -3, -2}, // k
+                                             {0,  0,  0,  0,    0,    0,  0,  0,  0.5,  1,   1,  -2,  -2,  1,  1,   0.5,  0.5,  -0.5, -1,   0,    0,    -1,   -0.5, 0.5,  0,    0,    0,    2,    2,    0,    0,    0,    0.5,  0.5, 1,    2.5,  2.5,  1,    0.5, 0.5,  1,    1,    2,   3,    3,    2,   1,    1,    5,    5,    5,  5,    5,    5,  5,    5,    0,  0,  0,  0,    0,    0,  0,  0}, // P
+                                             {-5, -4, -3, -3,   -3,   -3, -4, -5, -4,   -2,  0,  0.5, 0.5, 0,  -2,  -4,   -3,   0.5,  1,    1.5,  1.5,  1,    0.5,  -3,   -3,   0,    1.5,  2,    2,    1.5,  0,    -3,   -3,   0.5, 1.5,  2,    2,    1.5,  0.5, -3,   -3,   0,    1,   1.5,  1.5,  1,   0,    -3,   -4,   -2,   0,  0,    0,    0,  -2,   -4,   -5, -4, -3, -3,   -3,   -3, -4, -5}, // N
+                                             {-2, -1, -1, -1,   -1,   -1, -1, -2, -1,   0.5, 0,  0,   0,   0,  0.5, -1,   -1,   1,    1,    1,    1,    1,    1,    -1,   -1,   0,    1,    1,    1,    1,    0,    -1,   -1,   0.5, 0.5,  1,    1,    0.5,  0.5, -1,   -1,   0,    0.5, 1,    1,    0.5, 0,    -1,   -1,   0,    0,  0,    0,    0,  0,    -1,   -2, -1, -1, -1,   -1,   -1, -1, -2}, // B
+                                             {0,  0,  0,  0.5,  0.5,  0,  0,  0,  -0.5, 0,   0,  0,   0,   0,  0,   -0.5, -0.5, 0,    0,    0,    0,    0,    0,    -0.5, -0.5, 0,    0,    0,    0,    0,    0,    -0.5, -0.5, 0,   0,    0,    0,    0,    0,   -0.5, -0.5, 0,    0,   0,    0,    0,   0,    -0.5, 0.5,  1,    1,  1,    1,    1,  1,    0.5,  0,  0,  0,  0,    0,    0,  0,  0}, // R
+                                             {-2, -1, -1, -0.5, -0.5, -1, -1, -2, -1,   0,   0,  0,   0,   0,  0,   -1,   -1,   0,    0,    0.5,  0.5,  0,    0,    -1,   0,    0,    0.5,  0.5,  0.5,  0.5,  0,    0,    0,    0,   0.5,  0.5,  0.5,  0.5,  0,   0,    -1,   0,    0.5, 0.5,  0.5,  0.5, 0,    -1,   -1,   0,    0,  0,    0,    0,  0,    -1,   -2, -1, -1, -0.5, -0.5, -1, -1, -2}, // Q
+                                             {2,  3,  1,  0,    0,    1,  3,  2,  2,    2,   0,  0,   0,   0,  2,   2,    -1,   -2,   -2,   -2,   -2,   -2,   -2,   -1,   -2,   -3,   -3,   -4,   -4,   -3,   -3,   -2,   -3,   -4,  -4,   -5,   -5,   -4,   -4,  -3,   -3,   -4,   -4,  -5,   -5,   -4,  -4,   -3,   -3,   -4,   -4, -5,   -5,   -4, -4,   -3,   -3, -4, -4, -5,   -5,   -4, -4, -3}}; // K
 
 Minmax::Minmax(Board *g) {
     game = g;
@@ -12,17 +25,17 @@ Minmax::Minmax(Board *g) {
 float Minmax::minmax(int storage_position, int depth, int current_depth, float alpha, float beta) {
     if (current_depth == 0) {
         node_count++;
-        if (node_count % 10000 == 0) {cout << node_count << " nodes rn" << endl;}
-        return eval();
+        //if (node_count % 10000 == 0) {cout << node_count << " nodes rn" << endl;}
+        return evaluate();
     } else if (current_depth == -1) {
         current_depth = depth;
     }
     // eventual move_sorting here
     vector<tuple<int, int, int>> moves;
-    for (int i:(game->current_player?game->white_positions:game->black_positions)) {
+    for (int i: (game->current_player ? game->white_positions : game->black_positions)) {
         for (int dest_i = 0; dest_i < game->board[i].get_amount_moves(); dest_i++) {
             int dest = game->board[i].get_move(dest_i);
-            if (game->board[i].get_type() == pawn && (dest/8 == 0 || dest/8 == 7)) {
+            if (game->board[i].get_type() == pawn && (dest / 8 == 0 || dest / 8 == 7)) {
                 // promotions
                 for (int prom = 2; prom < 6; prom++) {
                     moves.emplace_back(i, dest, prom);
@@ -41,7 +54,7 @@ float Minmax::minmax(int storage_position, int depth, int current_depth, float a
 
 
     // simulate all moves of current depth
-    for (const auto& current_move:moves) {
+    for (const auto &current_move: moves) {
         // do move
         game->make_move(current_move);
 
@@ -51,28 +64,34 @@ float Minmax::minmax(int storage_position, int depth, int current_depth, float a
                 break;
             case white_win:
                 game->undo();
-                if (current_depth == depth &&
-                (best_moves_per_iteration[depth].empty() ||
-                !game->current_player && (100000 - (float) (depth-current_depth + 1)) < min_score ||
-                game->current_player && (100000 - (float) (depth-current_depth + 1)) > max_score)) {
+                if (current_depth == depth && (best_moves_per_iteration[depth].empty() || !game->current_player &&
+                                                                                          (100000 - (float) (depth -
+                                                                                                             current_depth +
+                                                                                                             1)) <
+                                                                                          min_score ||
+                                               game->current_player &&
+                                               (100000 - (float) (depth - current_depth + 1)) > max_score)) {
                     best_moves_per_iteration[storage_position] = {current_move};
                 } else if (current_depth == depth &&
-                (!game->current_player && (100000 - (float) (depth - current_depth + 1)) == min_score ||
-                game->current_player && (100000 - (float) (depth - current_depth + 1)) == max_score)) {
+                           (!game->current_player && (100000 - (float) (depth - current_depth + 1)) == min_score ||
+                            game->current_player && (100000 - (float) (depth - current_depth + 1)) == max_score)) {
                     best_moves_per_iteration[storage_position].push_back(current_move);
                 }
                 return (100000) - (float) (depth - current_depth + 1);
 
             case black_win:
                 game->undo();
-                if (current_depth == depth &&
-                (best_moves_per_iteration[depth].empty() ||
-                !game->current_player && (-100000 + (float) (depth-current_depth + 1)) < min_score ||
-                 game->current_player && (-100000 + (float) (depth-current_depth + 1)) > max_score)) {
+                if (current_depth == depth && (best_moves_per_iteration[depth].empty() || !game->current_player &&
+                                                                                          (-100000 + (float) (depth -
+                                                                                                              current_depth +
+                                                                                                              1)) <
+                                                                                          min_score ||
+                                               game->current_player &&
+                                               (-100000 + (float) (depth - current_depth + 1)) > max_score)) {
                     best_moves_per_iteration[storage_position] = {current_move};
                 } else if (current_depth == depth &&
-                (!game->current_player && (-100000 + (float) (depth - current_depth + 1)) == min_score ||
-                game->current_player && (-100000 + (float) (depth - current_depth + 1)) == max_score)) {
+                           (!game->current_player && (-100000 + (float) (depth - current_depth + 1)) == min_score ||
+                            game->current_player && (-100000 + (float) (depth - current_depth + 1)) == max_score)) {
                     best_moves_per_iteration[storage_position].push_back(current_move);
                 }
                 return (-100000) + (float) (depth - current_depth + 1);
@@ -80,18 +99,16 @@ float Minmax::minmax(int storage_position, int depth, int current_depth, float a
             default: // draw
                 game->undo();
                 if (current_depth == depth &&
-                (best_moves_per_iteration[depth].empty() ||
-                !game->current_player && 0 < min_score ||
-                game->current_player && 0 > max_score)) {
+                    (best_moves_per_iteration[depth].empty() || !game->current_player && 0 < min_score ||
+                     game->current_player && 0 > max_score)) {
                     best_moves_per_iteration[storage_position] = {current_move};
                 } else if (current_depth == depth &&
-                (!game->current_player && 0 == min_score ||
-                game->current_player && 0 == max_score)) {
+                           (!game->current_player && 0 == min_score || game->current_player && 0 == max_score)) {
                     best_moves_per_iteration[storage_position].push_back(current_move);
                 }
                 return 0;
         }
-        eval = minmax(storage_position, depth, current_depth-1, alpha, beta);
+        eval = minmax(storage_position, depth, current_depth - 1, alpha, beta);
         game->undo();
 
         // evaluate the results depending on color
@@ -99,19 +116,20 @@ float Minmax::minmax(int storage_position, int depth, int current_depth, float a
             // adding best moves stuff
             if (eval > max_score) {
                 max_score = eval;
-                if (current_depth == depth) {best_moves_per_iteration[storage_position] = {current_move};}
+                // pruning stuff
+                alpha = max(alpha, eval);
+                if (current_depth == depth) { best_moves_per_iteration[storage_position] = {current_move}; }
             } else if (eval == max_score && current_depth == depth) {
                 best_moves_per_iteration[storage_position].push_back(current_move);
             }
-
-            // pruning stuff
-            alpha = max(alpha, eval);
 
 
         } else {
             // adding best moves stuff
             if (eval < min_score) {
                 min_score = eval;
+                // pruning stuff
+                beta = min(beta, eval);
                 if (current_depth == depth) {
                     best_moves_per_iteration[storage_position] = {current_move};
                 }
@@ -119,22 +137,24 @@ float Minmax::minmax(int storage_position, int depth, int current_depth, float a
                 best_moves_per_iteration[storage_position].push_back(current_move);
             }
 
-            // pruning stuff
-            beta = min(beta, eval);
-        }
-        if (beta <= alpha) {break;}
-    }
 
-    return (game->current_player?max_score: min_score);
+        }
+        if (beta <= alpha) { break; }
+    }
+    if (game->move_history.back().previous_square == 5) {}
+
+
+    return (game->current_player ? max_score : min_score);
 }
 
-float Minmax::eval() {
+float Minmax::evaluate() {
     float eval = 0;
-    for (auto&i:game->white_positions) {
-        eval += piece_values[game->board[i].get_type()-1];
+    for (auto &i: game->white_positions) {
+        eval += piece_values[game->board[i].get_type() - 1] + eval_positions[6+(game->board[i].get_type())-1][i];
     }
-    for (auto&i:game->black_positions) {
-        eval -= piece_values[game->board[i].get_type()-1];
+    for (auto &i: game->black_positions) {
+        eval -= piece_values[game->board[i].get_type() - 1];
+        eval += eval_positions[(game->board[i].get_type())-1][i];
     }
     return eval;
 }
@@ -145,15 +165,13 @@ tuple<int, int, int> Minmax::get_move(bool use_depth, int depth_or_time) {
         node_count = 0;
         best_moves_per_iteration.emplace_back();
         //game->generate_piece_moves();
-        minmax(0, depth_or_time);
-        for (auto&bestmove:best_moves_per_iteration[0]) {
+        float eval = minmax(0, depth_or_time);
+        for (auto &bestmove: best_moves_per_iteration[0]) {
             cout << get<0>(bestmove) << " " << get<1>(bestmove) << endl;
         }
-        cout << node_count << " nodes this move" << endl;
-        return best_moves_per_iteration[0].at(rand()%best_moves_per_iteration[0].size());
-    }
-    else {
+        cout << node_count << " nodes this move " << eval << endl;
+        return best_moves_per_iteration[0].at(rand() % best_moves_per_iteration[0].size());
+    } else {
         return {};
-    }
-    ;
+    };
 }

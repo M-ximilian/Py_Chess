@@ -1,5 +1,11 @@
 #include "Minmax.h"
 
+
+
+
+
+
+
 int main() {
     int used_seed = (int) time(nullptr);
     cout << used_seed << endl;
@@ -41,8 +47,6 @@ int main() {
         }
     return 0;
 }
-
-
 
 
 

@@ -34,6 +34,7 @@ public:
     unordered_set<int> white_positions;
     unordered_set<int> black_positions;
     bool current_player;
+    vector<stored_move> move_history{};
 
 private:
 
@@ -48,7 +49,6 @@ private:
     int fifty_moves_rule_count;
     int move_count;
     int undo_count = 0;
-    vector<stored_move> move_history{};
     vector<stored_position> positions{};
     stored_move no_move = stored_move{-1, -1, none, none, -1, -1, {false, false, false, false}};
 

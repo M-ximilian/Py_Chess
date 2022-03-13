@@ -26,7 +26,7 @@ private:
 
     void time_search(int max_time);
 
-    float eval();
+    float evaluate();
 };
 
 
